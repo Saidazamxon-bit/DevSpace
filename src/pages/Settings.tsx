@@ -87,7 +87,8 @@ export default function Settings() {
   // Menyudagi “Zaxira va tiklash” → ma’lumotlar bo‘limiga o‘tish
   const loc = useLocation();
   useEffect(() => {
-    if (loc.hash === '#data') window.setTimeout(() => document.getElementById('data')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    const id = loc.hash.replace('#', '');
+    if (id === 'data' || id === 'install') window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
   }, [loc.hash]);
 
   async function exportJson() {

@@ -226,3 +226,32 @@ export function accountBalances(
   }
   return m;
 }
+
+export interface BalancePoint {
+  date: ISODate;
+  value: Minor;
+}
+
+/**
+ * Jami mablag‘ tarixi: har kun oxiridagi umumiy balans (o‘tkazmalar jami summaga ta’sir qilmaydi).
+ * Uzun davrlarda nuqtalar siyraklashtiriladi (≈120 tagacha), oxirgi kun doim kiradi.
+ */
+export function balanceSeries(initialTotal: Minor, txs: Transaction[], from: ISODate, to: ISODate): BalancePoint[] {
+  const flowByDay = new Map<string, number>();
+  let start = initialTotal;
+  for (const t of txs) {
+    const f = t.type === 'income' ? t.amount : -t.amount;
+    if (t.date < from) start += f;
+    else if (t.date <= to) flowByDay.set(t.date, (flowByDay.get(t.date) ?? 0) + f);
+  }
+  const days = Math.max(0, daysBetween(from, to));
+  const step = Math.max(1, Math.ceil((days + 1) / 120));
+  const out: BalancePoint[] = [];
+  let bal = start;
+  let i = 0;
+  for (let d = from; d <= to; d = addDays(d, 1), i++) {
+    bal += flowByDay.get(d) ?? 0;
+    if (i % step === 0 || d === to) out.push({ date: d, value: bal });
+  }
+  return out;
+}

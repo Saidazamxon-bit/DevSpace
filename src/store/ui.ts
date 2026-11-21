@@ -108,3 +108,10 @@ interface NavState {
   setDrawer: (v: boolean) => void;
 }
 export const useNav = create<NavState>((set) => ({ drawer: false, setDrawer: (drawer) => set({ drawer }) }));
+
+// ───────── O‘tkazma formasi ─────────
+interface TransferFormState {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}
+export const useTransferForm = create<TransferFormState>((set) => ({ open: false, setOpen: (open) => set({ open }) }));

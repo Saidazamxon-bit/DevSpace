@@ -25,6 +25,7 @@ export default {
       borderRadius: { '4xl': '2rem' },
       boxShadow: {
         card: '0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06)',
+        soft: '0 1px 2px rgb(16 24 40 / 0.03), 0 10px 30px -14px rgb(16 24 40 / 0.12)',
         lift: '0 8px 24px -6px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06)',
         float: '0 12px 32px -8px rgb(0 0 0 / 0.35)',
       },

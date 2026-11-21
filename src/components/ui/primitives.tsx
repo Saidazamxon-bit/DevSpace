@@ -1,5 +1,5 @@
 import { type ReactNode, useId } from 'react';
-import { Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { InfoButton } from '../InfoButton';
 import type { InfoKey } from '@/utils/infoTexts';
@@ -57,15 +57,11 @@ export function Segmented<T extends string>({
 
 export function CategoryIcon({ icon, color, size = 'md', className }: { icon: string; color: string; size?: 'sm' | 'md' | 'lg'; className?: string }) {
   const Icon = getIcon(icon);
-  const dims = size === 'sm' ? 'h-8 w-8 rounded-[10px]' : size === 'lg' ? 'h-12 w-12 rounded-2xl' : 'h-10 w-10 rounded-xl';
-  const px = size === 'sm' ? 16 : size === 'lg' ? 22 : 19;
+  const dims = size === 'sm' ? 'h-8 w-8' : size === 'lg' ? 'h-12 w-12' : 'h-11 w-11';
+  const px = size === 'sm' ? 16 : size === 'lg' ? 22 : 20;
   return (
-    <span
-      className={cn('grid shrink-0 place-items-center', dims, className)}
-      style={{ backgroundColor: `${color}1f`, color }}
-      aria-hidden
-    >
-      <Icon size={px} strokeWidth={2} />
+    <span className={cn('grid shrink-0 place-items-center rounded-full text-white', dims, className)} style={{ backgroundColor: color }} aria-hidden>
+      <Icon size={px} strokeWidth={2.1} />
     </span>
   );
 }
@@ -136,17 +132,40 @@ export function Field({ label, error, hint, children, htmlFor }: { label: string
   );
 }
 
-/** Ichki sahifalar sarlavhasi: ← orqaga (bosh ekranga), nom va amallar */
-export function PageHeader({ title, subtitle, actions, info }: { title: string; subtitle?: ReactNode; actions?: ReactNode; info?: InfoKey }) {
+/** Sahifa sarlavhasi: ← orqaga (ixtiyoriy), nom, ⓘ va amallar */
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  info,
+  back = true,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+  info?: InfoKey;
+  back?: boolean;
+}) {
+  const navigate = useNavigate();
+  const location = useLocation();
   return (
     <header className="sticky top-0 z-30 -mx-4 mb-4 bg-bg/85 px-3 pt-[var(--safe-top)] backdrop-blur-xl sm:-mx-6 sm:px-5">
       <div className="flex min-h-14 items-center gap-1">
-        <Link to="/" className="icon-btn text-ink" aria-label="Orqaga — bosh ekran">
-          <ArrowLeft size={21} />
-        </Link>
+        {back ? (
+          <button
+            type="button"
+            className="icon-btn text-ink"
+            aria-label="Orqaga"
+            onClick={() => (location.key !== 'default' ? navigate(-1) : navigate('/'))}
+          >
+            <ArrowLeft size={21} />
+          </button>
+        ) : (
+          <span className="w-2" />
+        )}
         <div className="min-w-0 flex-1 pl-1">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-[18px] font-bold tracking-tight text-ink">{title}</h1>
+            <h1 className={cn('truncate font-bold tracking-tight text-ink', back ? 'text-[18px]' : 'text-[24px]')}>{title}</h1>
             {info && <InfoButton topic={info} />}
           </div>
           {subtitle && <p className="truncate text-[12px] text-muted -mt-0.5">{subtitle}</p>}

@@ -4,16 +4,16 @@ Shaxsiy moliyani boshqarish uchun **offline ishlaydigan** web-ilova (PWA). Darom
 
 ## Imkoniyatlar
 
-Ilova bitta asosiy ekranga qurilgan — ochishingiz bilan pulingiz qayerga ketayotganini ko‘rasiz:
+Pastdagi shisha (iOS “Liquid Glass” uslubidagi) tab-bar orqali 4 bo‘lim: **Asosiy · Tahlil · Hisoblar · Boshqa**.
 
-- **Bosh ekran** — davr tanlash (Bugun, Kecha, Shu hafta, Shu oy, Maxsus va ‹ › bilan oldingi/keyingi davr), markazda katta donut grafik: xarajat kategoriyalari ulushi, markazda daromad, xarajat va qoldiq. Atrofidagi kategoriya ikonkasiga bosilsa — shu kategoriyaga tez xarajat qo‘shiladi; segmentga bosilsa — kategoriya ma’lumoti chiqadi.
-- **Eng tepada jami mablag‘** — bosilsa **Hisoblar** ochiladi: Karta, Naqd, Jamg‘arma va o‘zingiz qo‘shgan hisoblar, har birining qoldig‘i, hisoblar orasida **o‘tkazma**. Qoldiq farq qilsa — “Hozirgi qoldiq”ni kiriting, ilova o‘zi to‘g‘rilaydi.
-- **Doimiy to‘lovlar** — qo‘shayotganda “Har oy” yoki “Har hafta”ni tanlang; vaqti kelganda bosh ekranda bir bosishda tasdiqlanadi yoki o‘tkazib yuboriladi.
-- **Zaxira eslatmasi** — haftada bir marta zaxira nusxa olishni eslatadi (ma’lumot faqat qurilmada).
-- Ixcham **kategoriyalar ro‘yxati** (ikonka, nom, tranzaksiyalar soni, jami summa).
-- Bo‘limlar yonidagi **ⓘ** tugmasi — bo‘lim nima vazifa bajarishini tushuntiradi.
-- **Tanishtiruv sahifasi** — sayt brauzerda ochilganda: “Ilovani o‘rnatish” (Chrome/Edge/Android’da brauzer ruxsat oynasi, iPhone’da qadamma-qadam yo‘riqnoma). O‘rnatilgan ilova to‘g‘ridan-to‘g‘ri ochiladi.
-- Pastda ikkita katta tugma: qizil **−** xarajat, yashil **+** daromad. Telefonda summa ilovaning o‘z raqamli klaviaturasi bilan kiritiladi, `+` va `−` bilan hisoblash mumkin (masalan, `45 000+12 000`).
+- **Asosiy** — jami mablag‘, uning o‘zgarishi (summa va %) va chiziqli grafik (Hafta / Oy / 3 oy / Yil / Hammasi; barmoq bilan yurgizib istalgan kun qoldig‘ini ko‘rish), “Hisoblar bo‘yicha” ro‘yxat, shu oyning daromad va xarajati, oxirgi operatsiyalar. Pastda suzuvchi **− + ⇄** tugmalari: xarajat, daromad, hisoblar orasida o‘tkazma.
+- **Tahlil** — Xarajatlar / Budjet / Daromadlar: kategoriyalar bo‘yicha donut (segmentga bosilsa — tafsilot), ro‘yxat, “Ko‘proq ko‘rish”, budjet holati.
+- **Hisoblar** — Karta, Naqd, Jamg‘arma va o‘zingiz qo‘shgan hisoblar, qoldiqni to‘g‘rilash, o‘tkazmalar tarixi.
+- **Boshqa** — tranzaksiyalar, budjetlar, doimiy to‘lovlar, kategoriyalar, sozlamalar, zaxira; har birining yonida **ⓘ** tavsif.
+- Telefonda summa ilovaning o‘z raqamli klaviaturasi bilan kiritiladi, `+` va `−` bilan hisoblash mumkin (masalan, `45 000+12 000`).
+- **Doimiy to‘lovlar** — “Har oy” / “Har hafta”; vaqti kelganda bosh ekranda bir bosishda tasdiqlanadi.
+- **Zaxira eslatmasi** — haftada bir marta.
+- **Tanishtiruv sahifasi** — brauzerda ochilganda: imkoniyatlar, 3 qadam, maxfiylik, savol-javob va “Ilovani o‘rnatish” (Chrome/Edge/Android’da brauzer ruxsat oynasi, iPhone’da yo‘riqnoma). O‘rnatilgan ilova to‘g‘ridan-to‘g‘ri ochiladi.
 - **Tranzaksiyalar** — menyu, qidiruv yoki kategoriyaga bosib ochiladi: ko‘rish, tahrirlash, o‘chirish (“Qaytarish” bilan), davr/kategoriya/tur bo‘yicha filtr, qidiruv, CSV eksport.
 - **Kategoriyalar** — yaratish, nom, ikonka va rangni o‘zgartirish, o‘chirish (ishlatilgan bo‘lsa, yozuvlar boshqa kategoriyaga ko‘chiriladi).
 - **Budjetlar** — kategoriya bo‘yicha oylik limit, limitga yaqinlashganda ogohlantirish.
@@ -58,8 +58,8 @@ Ilova nisbiy yo‘llar (`base: './'`) va hash-routing ishlatadi, shuning uchun i
 ```
 src/
   components/   UI komponentlar (ui/, charts/, settings/, forma va ro‘yxat elementlari)
-  pages/        Landing (tanishtiruv), Home (bosh ekran), Accounts, Transactions, Recurring, Categories, Budgets, Settings
-  layouts/      Sodda layout va chapdan ochiladigan menyu
+  pages/        Landing, Home, Analytics (Tahlil), Accounts, More (Boshqa), Transactions, Recurring, Categories, Budgets, Settings
+  layouts/      Layout va shisha tab-bar
   hooks/        Ma’lumotlarni jonli o‘qish (useLiveQuery), mavzu, format, onlayn holat
   services/     Ma’lumotlar qatlami: finance (CRUD + validatsiya), backup, crypto, security
   database/     Dexie sxemasi, versiyalar va migratsiyalar, standart kategoriyalar

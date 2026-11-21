@@ -1,34 +1,48 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronRight, List, Minus, Plus, Search, Settings2, X } from 'lucide-react';
-import { useAccounts, useCategories, useTransactions, useTransfers } from '@/hooks/useData';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Lock, Search } from 'lucide-react';
+import { useAccounts, useCategories, useSecurityConfig, useTransactions, useTransfers } from '@/hooks/useData';
 import { useFormat } from '@/hooks/useFormat';
-import { useTxForm } from '@/store/ui';
-import { periodRange, usePeriodStore } from '@/store/period';
-import { accountBalances, byCategory, computeTotals, inRange } from '@/utils/stats';
-import type { TxType } from '@/types';
-import { DonutRing } from '@/components/DonutRing';
-import { PeriodBar } from '@/components/PeriodBar';
-import { Amount } from '@/components/Amount';
-import { CategoryIcon, Segmented, Skeleton } from '@/components/ui/primitives';
-import { BackupReminder, DueRecurring } from '@/components/HomeBanners';
-import { MenuButton } from '@/layouts/Menu';
-import { Logo } from '@/components/Logo';
+import { useLock, useTxForm } from '@/store/ui';
+import { accountBalances, balanceSeries, computeTotals, inRange, type BalancePoint } from '@/utils/stats';
+import { addDays, endOfMonth, formatDayHeading, MONTHS, startOfMonth, todayISO } from '@/utils/date';
+import { useSettings } from '@/store/settings';
+import { getIcon } from '@/utils/icons';
 import { cn } from '@/utils/misc';
+import { Amount } from '@/components/Amount';
+import { BalanceChart } from '@/components/BalanceChart';
+import { ActionPill } from '@/components/ActionPill';
+import { CategoryIcon, Skeleton } from '@/components/ui/primitives';
+import { BackupReminder, DueRecurring } from '@/components/HomeBanners';
+import { Logo } from '@/components/Logo';
 
+type ChartRange = 'week' | 'month' | '3m' | 'ytd' | 'all';
+const RANGES: { value: ChartRange; label: string }[] = [
+  { value: 'week', label: 'Hafta' },
+  { value: 'month', label: 'Oy' },
+  { value: '3m', label: '3 oy' },
+  { value: 'ytd', label: 'Yil' },
+  { value: 'all', label: 'Hammasi' },
+];
+
+/** Asosiy ekran: jami mablag‘ va uning o‘zgarishi, shu oy natijasi, oxirgi operatsiyalar */
 export default function Home() {
   const txs = useTransactions();
-  const { list: categories, map: catMap } = useCategories();
+  const { map: catMap } = useCategories();
   const { list: accounts } = useAccounts();
   const transfers = useTransfers();
   const { money } = useFormat();
+  const dateFormat = useSettings((s) => s.dateFormat);
   const openNew = useTxForm((s) => s.openNew);
+  const openEdit = useTxForm((s) => s.openEdit);
   const navigate = useNavigate();
-  const { preset, offset, custom, setPreset, shift, setCustom } = usePeriodStore();
-  const range = useMemo(() => periodRange(preset, offset, custom), [preset, offset, custom]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [listType, setListType] = useState<TxType>('expense');
+  const security = useSecurityConfig();
+  const setLocked = useLock((s) => s.setLocked);
   const [params, setParams] = useSearchParams();
+  const [range, setRange] = useState<ChartRange>('month');
+  const [hover, setHover] = useState<BalancePoint | null>(null);
+  const [showAccounts, setShowAccounts] = useState(false);
+  const today = todayISO();
 
   // Manifest yorliqlari: ./#/?add=expense
   useEffect(() => {
@@ -42,209 +56,228 @@ export default function Home() {
 
   const data = useMemo(() => {
     if (!txs || !accounts || !transfers) return null;
-    const list = inRange(txs, range);
-    const expenseSlices = byCategory(list, 'expense', catMap);
     const balances = accountBalances(accounts, txs, transfers);
+    const total = [...balances.values()].reduce((s, x) => s + x, 0);
+    const initialTotal = accounts.reduce((s, a) => s + a.initialBalance, 0);
+    const earliest = txs.length ? txs[txs.length - 1].date : addDays(today, -29);
+    const from =
+      range === 'week' ? addDays(today, -6)
+      : range === 'month' ? addDays(today, -29)
+      : range === '3m' ? addDays(today, -89)
+      : range === 'ytd' ? `${today.slice(0, 4)}-01-01`
+      : earliest < addDays(today, -6) ? earliest : addDays(today, -6);
+    const series = balanceSeries(initialTotal, txs, from, today);
+    const first = series[0]?.value ?? total;
+    const change = total - first;
+    const month = computeTotals(inRange(txs, { from: startOfMonth(today), to: endOfMonth(today) }));
     return {
-      totals: computeTotals(list),
       balances,
-      balance: [...balances.values()].reduce((s, x) => s + x, 0),
-      expenseSlices,
-      incomeSlices: byCategory(list, 'income', catMap),
-      spentBy: new Map(expenseSlices.map((s) => [s.categoryId, s.total])),
+      total,
+      series,
+      change,
+      pct: first !== 0 ? (change / Math.abs(first)) * 100 : null,
+      month,
+      recent: txs.slice(0, 6),
       hasAny: txs.length > 0,
     };
-  }, [txs, range, catMap, accounts, transfers]);
+  }, [txs, accounts, transfers, range, today]);
 
-  // Davr o‘zgarsa yoki kategoriya endi bo‘lmasa — tanlovni bekor qilish
-  useEffect(() => setSelected(null), [range.from, range.to]);
-
-  const ringIcons = useMemo(() => (categories ?? []).filter((c) => c.type === 'expense').slice(0, 12), [categories]);
-  const sel = selected ? data?.expenseSlices.find((s) => s.categoryId === selected) : undefined;
-  const rows = listType === 'expense' ? data?.expenseSlices : data?.incomeSlices;
-
-  const center = !data ? (
-    <Skeleton className="h-16 w-28" />
-  ) : sel ? (
-    <div className="flex flex-col items-center gap-1 px-2 animate-fade-in">
-      <CategoryIcon icon={sel.icon} color={sel.color} size="sm" />
-      <p className="max-w-full truncate text-[13px] font-semibold text-ink">{sel.name}</p>
-      <p className="text-lg font-bold leading-tight text-ink">
-        <Amount value={sel.total} />
-      </p>
-      <p className="text-[12px] text-muted tabular">
-        {sel.percent.toFixed(1).replace('.', ',')}% · {sel.count} ta
-      </p>
-      <div className="mt-1 flex gap-1.5">
-        <Link to={`/transactions?category=${sel.categoryId}`} className="grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink" aria-label="Tranzaksiyalar ro‘yxati">
-          <List size={16} />
-        </Link>
-        <button type="button" onClick={() => openNew('expense', sel.categoryId)} className="grid h-8 w-8 place-items-center rounded-full bg-expense text-white dark:text-[#2b0909]" aria-label={`${sel.name} — xarajat qo‘shish`}>
-          <Plus size={16} />
-        </button>
-        <button type="button" onClick={() => setSelected(null)} className="grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-muted hover:text-ink" aria-label="Tanlovni bekor qilish">
-          <X size={16} />
-        </button>
-      </div>
-    </div>
-  ) : (
-    <div className="flex flex-col items-center px-1" data-testid="center-totals">
-      <p className="font-medium uppercase tracking-wide text-subtle" style={{ fontSize: 'clamp(9px, 2.9cqw, 11px)' }}>Daromad</p>
-      <p className="whitespace-nowrap font-semibold text-income leading-tight" style={{ fontSize: 'clamp(12px, 4.2cqw, 16px)' }}>
-        <Amount value={data.totals.income} sign="always" />
-      </p>
-      <p className="mt-1 font-medium uppercase tracking-wide text-subtle" style={{ fontSize: 'clamp(9px, 2.9cqw, 11px)' }}>Xarajat</p>
-      <p className="whitespace-nowrap font-bold text-expense leading-tight" style={{ fontSize: 'clamp(16px, 5.8cqw, 24px)' }} data-testid="period-expense">
-        <Amount value={-data.totals.expense} sign="always" />
-      </p>
-      <p className="mt-1 whitespace-nowrap text-muted" style={{ fontSize: 'clamp(10px, 3.3cqw, 13px)' }}>
-        Qoldiq: <span className={cn('font-semibold tabular', data.totals.net >= 0 ? 'text-ink' : 'text-expense')}>{money(data.totals.net, { sign: 'always', compact: true })}</span>
-      </p>
-    </div>
-  );
+  const monthName = MONTHS[new Date().getMonth()];
 
   return (
-    <div className="pb-[calc(7.5rem+var(--safe-bottom))]">
+    <div className="relative pb-[calc(5rem+var(--safe-bottom))]">
+      {/* Yumshoq yashil fon (aksent rangida) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-4 -top-px h-[250px] rounded-b-[2.75rem] opacity-95 dark:opacity-60 sm:-inset-x-6"
+        style={{
+          background:
+            'radial-gradient(120% 90% at 50% -10%, rgb(var(--accent) / 0.95) 0%, rgb(var(--accent) / 0.75) 45%, rgb(var(--accent) / 0.25) 80%, transparent 100%)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-4 top-0 h-[230px] opacity-[0.12] sm:-inset-x-6"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 50% 30%, transparent 0 60px, #fff 61px 62px, transparent 63px 110px, #fff 111px 112px, transparent 113px 170px, #fff 171px 172px, transparent 173px)',
+        }}
+      />
+
       {/* Yuqori panel */}
-      <header className="sticky top-0 z-30 -mx-4 mb-2 flex h-14 items-center gap-1 bg-bg/85 px-3 pt-[var(--safe-top)] backdrop-blur-xl sm:-mx-6 sm:px-5">
-        <MenuButton />
-        <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
+      <header className="relative z-10 flex h-16 items-center gap-2 pt-[var(--safe-top)] text-white">
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-white/20 backdrop-blur">
           <Logo size={26} />
-          <span className="truncate text-[16px] font-bold tracking-tight">Personal Finance</span>
-        </div>
-        <button type="button" className="icon-btn" onClick={() => navigate('/transactions?search=1')} aria-label="Qidirish">
-          <Search size={20} />
+        </span>
+        <span className="flex-1 truncate text-[16px] font-bold tracking-tight">Personal Finance</span>
+        {security?.pinHash && (
+          <button type="button" onClick={() => setLocked(true)} className="grid h-10 w-10 place-items-center rounded-full bg-white/20 backdrop-blur transition-colors hover:bg-white/30" aria-label="Ilovani qulflash">
+            <Lock size={18} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => navigate('/transactions?search=1')}
+          className="grid h-10 w-10 place-items-center rounded-full bg-white/20 backdrop-blur transition-colors hover:bg-white/30"
+          aria-label="Qidirish"
+        >
+          <Search size={19} />
         </button>
-        <Link to="/settings" className="icon-btn" aria-label="Sozlamalar">
-          <Settings2 size={20} />
-        </Link>
       </header>
 
-      {/* Eng tepada — jami mablag‘. Bosilsa: Karta, Naqd, Jamg‘arma … */}
-      <Link
-        to="/accounts"
-        className="mx-auto mb-3 block max-w-md rounded-3xl bg-accent px-5 py-3 text-accent-ink shadow-card transition-transform active:scale-[0.99] lg:max-w-xl"
-        data-testid="balance-panel"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-[13px] font-medium opacity-80">Jami mablag‘</span>
-          <ChevronRight size={18} className="opacity-70" />
-        </div>
-        <p className="text-[26px] font-bold leading-tight" data-testid="balance">
-          {data ? <Amount value={data.balance} /> : '…'}
-        </p>
-        {data && accounts && (
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
-            {accounts.slice(0, 3).map((a) => (
-              <span key={a.id} className="min-w-0 rounded-xl bg-black/10 px-2.5 py-1.5 dark:bg-black/20">
-                <span className="flex items-center gap-1 text-[11px] font-medium opacity-80">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.color }} />
-                  <span className="truncate">{a.name}</span>
-                </span>
-                <span className="block truncate text-[13px] font-bold">{money(data.balances.get(a.id) ?? 0, { compact: true, plain: true })}</span>
+      <div className="relative z-10 mt-2 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
+          {/* Jami mablag‘ */}
+          <section className="card px-4 pb-4 pt-5 text-center" aria-labelledby="nw-title">
+            <p id="nw-title" className="text-[13px] font-medium text-muted first-letter:uppercase">
+              {hover ? formatDayHeading(hover.date, dateFormat) : 'Jami mablag‘'}
+            </p>
+            <Link to="/accounts" className="mt-1 block text-[34px] font-bold leading-tight tracking-tight text-ink" data-testid="balance-panel">
+              <span data-testid="balance">{data ? <Amount value={hover ? hover.value : data.total} /> : '…'}</span>
+            </Link>
+            {data && !hover && (
+              <p className="mt-1 flex items-center justify-center gap-2 text-[14px] font-semibold">
+                <span className={data.change >= 0 ? 'text-income' : 'text-expense'}>{money(data.change, { sign: 'always' })}</span>
+                {data.pct !== null && (
+                  <span className={cn('rounded-full px-2 py-0.5 text-[12px] font-bold', data.change >= 0 ? 'bg-income/15 text-income' : 'bg-expense/15 text-expense')}>
+                    {data.change >= 0 ? '+' : '−'}
+                    {Math.abs(data.pct).toFixed(Math.abs(data.pct) < 10 ? 1 : 0).replace('.', ',')}%
+                  </span>
+                )}
+              </p>
+            )}
+            {data && hover && <p className="mt-1 text-[14px] text-muted">Shu kun oxiridagi qoldiq</p>}
+
+            <div className="mt-3">{data ? <BalanceChart points={data.series} onHover={setHover} /> : <Skeleton className="h-[130px] w-full" />}</div>
+
+            <div role="radiogroup" aria-label="Grafik davri" className="mt-2 flex justify-center gap-1">
+              {RANGES.map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={range === r.value}
+                  onClick={() => setRange(r.value)}
+                  className={cn('h-8 rounded-full px-3 text-[13px] font-semibold transition-colors', range === r.value ? 'bg-surface-2 text-ink' : 'text-subtle hover:text-ink')}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAccounts((v) => !v)}
+              aria-expanded={showAccounts}
+              className="mt-3 flex h-11 w-full items-center justify-center gap-1 rounded-full bg-surface-2 text-[14px] font-semibold text-muted transition-colors hover:text-ink"
+            >
+              Hisoblar bo‘yicha <ChevronDown size={16} className={cn('transition-transform', showAccounts && 'rotate-180')} />
+            </button>
+            {showAccounts && data && accounts && (
+              <ul className="mt-2 space-y-1 text-left animate-fade-in">
+                {accounts.map((a) => {
+                  const Icon = getIcon(a.icon);
+                  const bal = data.balances.get(a.id) ?? 0;
+                  return (
+                    <li key={a.id}>
+                      <Link to={`/transactions?account=${a.id}&period=all`} className="flex items-center gap-3 rounded-2xl px-2 py-2 hover:bg-surface-2/70">
+                        <span className="grid h-9 w-9 place-items-center rounded-full text-white" style={{ background: a.color }}>
+                          <Icon size={17} />
+                        </span>
+                        <span className="flex-1 text-[15px] font-medium text-ink">{a.name}</span>
+                        <span className={cn('text-[15px] font-semibold', bal < 0 ? 'text-expense' : 'text-ink')}>
+                          <Amount value={bal} />
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+                <li>
+                  <Link to="/accounts" className="flex items-center justify-center gap-1 py-2 text-[13px] font-semibold text-accent">
+                    Hisoblarni boshqarish <ChevronRight size={15} />
+                  </Link>
+                </li>
+              </ul>
+            )}
+            {data && !data.hasAny && data.total === 0 && (
+              <Link to="/accounts" className="mt-3 flex items-center justify-center gap-1 text-[13px] font-semibold text-accent">
+                Hisoblaringizda qancha pul borligini kiriting <ChevronRight size={15} />
+              </Link>
+            )}
+          </section>
+
+          <div className="space-y-2 empty:hidden">
+            <DueRecurring />
+            {txs && <BackupReminder txs={txs} />}
+          </div>
+
+          {/* Shu oy */}
+          <div className="grid grid-cols-2 gap-3">
+            <Link to="/analytics?tab=income" className="card !p-4 transition-transform active:scale-[0.98]">
+              <span className="flex items-center gap-1.5 text-[12px] font-medium text-muted">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-income/15 text-income"><ArrowDownLeft size={14} /></span>
+                Daromad · {monthName}
               </span>
-            ))}
-          </div>
-        )}
-      </Link>
-
-      <div className="mx-auto mb-3 max-w-xl space-y-2 empty:hidden">
-        <DueRecurring />
-        {txs && <BackupReminder txs={txs} />}
-      </div>
-
-      <PeriodBar preset={preset} range={range} custom={custom} onPreset={setPreset} onShift={shift} onCustom={setCustom} />
-
-      <div className="mt-2 grid items-start gap-6 lg:mt-6 lg:grid-cols-2 lg:gap-10">
-        <section aria-label="Umumiy ko‘rinish">
-          <div onClick={() => setSelected(null)}>
-            <DonutRing
-              slices={data?.expenseSlices ?? []}
-              icons={ringIcons}
-              totals={data?.spentBy ?? new Map()}
-              selected={selected}
-              onSelect={setSelected}
-              onIconClick={(c) => openNew('expense', c.id)}
-              center={center}
-            />
-          </div>
-          <p className="mt-1 hidden text-center text-[12px] text-subtle [@media(min-height:740px)]:block">Ikonkaga bosing — shu kategoriyaga tez xarajat qo‘shiladi</p>
-
-        </section>
-
-        {/* Kategoriyalar ro‘yxati */}
-        <section aria-labelledby="cats-title">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 id="cats-title" className="sr-only">Kategoriyalar bo‘yicha</h2>
-            <Segmented
-              size="sm"
-              value={listType}
-              onChange={setListType}
-              label="Ro‘yxat turi"
-              options={[
-                { value: 'expense', label: 'Xarajatlar', tone: 'expense' },
-                { value: 'income', label: 'Daromadlar', tone: 'income' },
-              ]}
-            />
-            <Link to="/transactions" className="text-[13px] font-semibold text-accent">
-              Barchasi
+              <span className="mt-2 block text-[18px] font-bold text-ink">{data ? <Amount value={data.month.income} /> : '…'}</span>
+            </Link>
+            <Link to="/analytics" className="card !p-4 transition-transform active:scale-[0.98]">
+              <span className="flex items-center gap-1.5 text-[12px] font-medium text-muted">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-expense/15 text-expense"><ArrowUpRight size={14} /></span>
+                Xarajat · {monthName}
+              </span>
+              <span className="mt-2 block text-[18px] font-bold text-ink" data-testid="month-expense">{data ? <Amount value={data.month.expense} /> : '…'}</span>
             </Link>
           </div>
+        </div>
 
-          {!rows ? (
-            <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full rounded-2xl" />)}</div>
-          ) : rows.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-line px-5 py-8 text-center">
-              <p className="font-semibold text-ink">{data?.hasAny ? 'Bu davrda yozuvlar yo‘q' : 'Hali yozuvlar yo‘q'}</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-muted">
-                Pastdagi <b className="text-expense">−</b> tugmasi bilan xarajat, <b className="text-income">+</b> tugmasi bilan daromad qo‘shing.
+        {/* Oxirgi operatsiyalar */}
+        <section className="card !px-3 !pb-3" aria-labelledby="recent-title">
+          <div className="flex items-center justify-between px-2 pb-1">
+            <h2 id="recent-title" className="text-[13px] font-medium text-muted">Oxirgi operatsiyalar</h2>
+            {data?.hasAny && (
+              <Link to="/transactions" className="text-[13px] font-semibold text-accent">
+                Barchasi
+              </Link>
+            )}
+          </div>
+          {!data ? (
+            <div className="space-y-3 p-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : !data.hasAny ? (
+            <div className="px-3 py-8 text-center">
+              <p className="font-semibold text-ink">Hali yozuvlar yo‘q</p>
+              <p className="mx-auto mt-1 max-w-xs text-[13px] leading-relaxed text-muted">
+                Pastdagi <b className="text-expense">−</b> tugmasi bilan xarajat, <b className="text-accent">+</b> bilan daromad qo‘shing. <b>⇄</b> — hisoblar orasida o‘tkazma.
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-line/60 overflow-hidden rounded-2xl border border-line/70 bg-surface">
-              {rows.map((r) => (
-                <li key={r.categoryId}>
-                  <Link to={`/transactions?category=${r.categoryId}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2/60 active:bg-surface-2">
-                    <CategoryIcon icon={r.icon} color={r.color} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-medium text-ink">{r.name}</p>
-                      <p className="text-[12px] text-muted">
-                        {r.count} ta · {r.percent.toFixed(0)}%
-                      </p>
-                    </div>
-                    <span className={cn('text-[15px] font-semibold', listType === 'income' ? 'text-income' : 'text-ink')}>
-                      <Amount value={r.total} />
-                    </span>
-                  </Link>
-                </li>
-              ))}
+            <ul>
+              {data.recent.map((t) => {
+                const cat = catMap.get(t.categoryId);
+                const income = t.type === 'income';
+                return (
+                  <li key={t.id}>
+                    <button type="button" onClick={() => openEdit(t)} className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-surface-2/70">
+                      <CategoryIcon icon={cat?.icon ?? 'more'} color={cat?.color ?? '#94a3b8'} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-semibold text-ink">{t.note || cat?.name || 'Yozuv'}</span>
+                        <span className="block truncate text-[12px] text-muted first-letter:uppercase">
+                          {formatDayHeading(t.date, dateFormat)}
+                          {t.note && cat ? ` · ${cat.name}` : ''}
+                        </span>
+                      </span>
+                      <span className={cn('tabular shrink-0 text-[15px] font-bold', income ? 'text-income' : 'text-ink')}>
+                        {money(income ? t.amount : -t.amount, { sign: 'always' })}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
       </div>
 
-      {/* Pastki tugmalar: − xarajat, + daromad */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-bg via-bg/80 to-transparent pb-[calc(1rem+var(--safe-bottom))] pt-8">
-        <div className="pointer-events-auto mx-auto flex w-full max-w-md items-center justify-center gap-12">
-          <button
-            type="button"
-            onClick={() => openNew('expense')}
-            aria-label="Xarajat qo‘shish"
-            className="grid h-16 w-16 place-items-center rounded-full bg-expense text-white dark:text-[#2b0909] shadow-lift transition-transform hover:brightness-110 active:scale-90"
-          >
-            <Minus size={30} strokeWidth={2.6} />
-          </button>
-          <button
-            type="button"
-            onClick={() => openNew('income')}
-            aria-label="Daromad qo‘shish"
-            className="grid h-16 w-16 place-items-center rounded-full bg-income text-white dark:text-[#04261a] shadow-lift transition-transform hover:brightness-110 active:scale-90"
-          >
-            <Plus size={30} strokeWidth={2.6} />
-          </button>
-        </div>
-      </div>
-
+      <ActionPill />
     </div>
   );
 }

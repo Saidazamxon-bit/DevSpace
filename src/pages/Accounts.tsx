@@ -4,16 +4,14 @@ import { ArrowLeftRight, ArrowRight, Check, ChevronRight, Pencil, Plus, Trash2 }
 import { useAccounts, useTransactions, useTransfers } from '@/hooks/useData';
 import { useFormat } from '@/hooks/useFormat';
 import { useSettings } from '@/store/settings';
-import { confirmDialog, errorMessage, toast } from '@/store/ui';
+import { confirmDialog, errorMessage, toast, useTransferForm } from '@/store/ui';
 import {
-  ACCOUNT_KINDS, ACCOUNT_NAME_MAX, addAccount, addTransfer, countAccountUsage, deleteAccount, deleteTransfer, NOTE_MAX, updateAccount,
+  ACCOUNT_KINDS, ACCOUNT_NAME_MAX, addAccount, countAccountUsage, deleteAccount, deleteTransfer, updateAccount,
 } from '@/services/finance';
 import { db } from '@/database/db';
 import { accountBalances } from '@/utils/stats';
 import { getIcon, CATEGORY_COLORS } from '@/utils/icons';
-import { addDays, todayISO } from '@/utils/date';
 import { minorToInput } from '@/utils/money';
-import { parseAmountInput } from '@/utils/keypad';
 import { cn } from '@/utils/misc';
 import type { Account, AccountKind } from '@/types';
 import { Field, PageHeader, Skeleton } from '@/components/ui/primitives';
@@ -30,7 +28,7 @@ export default function Accounts() {
   const transfers = useTransfers();
   const { money, day } = useFormat();
   const [form, setForm] = useState<{ open: boolean; editing: Account | null }>({ open: false, editing: null });
-  const [transferOpen, setTransferOpen] = useState(false);
+  const openTransfer = useTransferForm((x) => x.setOpen);
 
   const balances = useMemo(
     () => (accounts && txs && transfers ? accountBalances(accounts, txs, transfers) : null),
@@ -50,6 +48,7 @@ export default function Accounts() {
       <PageHeader
         title="Hisoblar"
         info="accounts"
+        back={false}
         actions={
           <button className="btn btn-primary btn-sm h-10 px-3" onClick={() => setForm({ open: true, editing: null })}>
             <Plus size={16} /> <span className="hidden sm:inline">Yangi hisob</span>
@@ -66,7 +65,7 @@ export default function Accounts() {
           </p>
           <button
             type="button"
-            onClick={() => setTransferOpen(true)}
+            onClick={() => openTransfer(true)}
             disabled={(accounts?.length ?? 0) < 2}
             className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-black/10 px-4 text-sm font-semibold transition-colors hover:bg-black/15 disabled:opacity-50 dark:bg-black/20"
           >
@@ -151,7 +150,6 @@ export default function Accounts() {
       </div>
 
       <AccountForm open={form.open} editing={form.editing} balance={form.editing ? balances?.get(form.editing.id) ?? 0 : 0} others={(accounts ?? []).filter((a) => a.id !== form.editing?.id)} onClose={() => setForm({ open: false, editing: null })} />
-      <TransferForm open={transferOpen} accounts={accounts ?? []} balances={balances} onClose={() => setTransferOpen(false)} />
     </div>
   );
 }
@@ -321,115 +319,5 @@ function AccountForm({ open, editing, balance, others, onClose }: { open: boolea
         {error && <p className="text-[13px] text-expense" role="alert">{error}</p>}
       </form>
     </Modal>
-  );
-}
-
-function TransferForm({ open, accounts, balances, onClose }: { open: boolean; accounts: Account[]; balances: Map<string, number> | null; onClose: () => void }) {
-  const numberFormat = useSettings((s) => s.numberFormat);
-  const { money } = useFormat();
-  const [fromId, setFromId] = useState('');
-  const [toId, setToId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(todayISO());
-  const [note, setNote] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setFromId(accounts[0]?.id ?? '');
-    setToId(accounts[1]?.id ?? '');
-    setAmount('');
-    setDate(todayISO());
-    setNote('');
-    setError('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const r = parseAmountInput(amount, numberFormat);
-    if (!r.ok) return setError(r.error);
-    if (fromId === toId) return setError('Turli hisoblarni tanlang');
-    try {
-      await addTransfer({ fromId, toId, amount: r.value, date, note });
-      toast.success('O‘tkazma bajarildi', money(r.value));
-      onClose();
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={<span className="flex items-center gap-2.5"><ArrowLeftRight size={20} className="text-accent" /> O‘tkazma</span>}
-      description="Masalan: kartadan naqd yechish yoki jamg‘armaga qo‘yish"
-      footer={<button type="submit" form="tr-form" className="btn btn-primary h-12 flex-1">O‘tkazish</button>}
-    >
-      <form id="tr-form" onSubmit={submit} className="space-y-4" noValidate>
-        <div>
-          <label className="sr-only" htmlFor="tr-amount">Summa</label>
-          <MoneyInput id="tr-amount" value={amount} onChange={(v) => { setAmount(v); setError(''); }} large autoFocus />
-        </div>
-        <AccountPicker accounts={accounts} balances={balances} label="Qayerdan" value={fromId} onChange={(id) => { setFromId(id); if (id === toId) setToId(accounts.find((a) => a.id !== id)?.id ?? ''); }} />
-        <AccountPicker accounts={accounts} balances={balances} label="Qayerga" value={toId} onChange={setToId} exclude={fromId} />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Sana" htmlFor="tr-date">
-            <input id="tr-date" type="date" className="input" value={date} max={addDays(todayISO(), 366)} onChange={(e) => setDate(e.target.value)} />
-          </Field>
-          <Field label="Izoh" htmlFor="tr-note">
-            <input id="tr-note" className="input" maxLength={NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ixtiyoriy" />
-          </Field>
-        </div>
-        {error && <p className="text-[13px] text-expense" role="alert">{error}</p>}
-      </form>
-    </Modal>
-  );
-}
-
-/** Hisob tanlash tugmalari (forma ichida e’lon qilinmaydi — aks holda har yangilanishda qayta yaratilib, bosish yo‘qoladi) */
-function AccountPicker({
-  accounts,
-  balances,
-  value,
-  onChange,
-  label,
-  exclude,
-}: {
-  accounts: Account[];
-  balances: Map<string, number> | null;
-  value: string;
-  onChange: (id: string) => void;
-  label: string;
-  exclude?: string;
-}) {
-  const { money } = useFormat();
-  return (
-    <div>
-      <span className="label">{label}</span>
-      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
-        {accounts.map((a) => {
-          const Icon = getIcon(a.icon);
-          const active = a.id === value;
-          return (
-            <button
-              key={a.id}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              disabled={a.id === exclude}
-              onClick={() => onChange(a.id)}
-              className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors disabled:opacity-35', active ? 'border-transparent text-white' : 'border-line text-muted hover:text-ink')}
-              style={active ? { background: a.color } : undefined}
-            >
-              <Icon size={16} />
-              {a.name}
-              {balances && <span className={cn('text-[11px] font-medium', active ? 'text-white/80' : 'text-subtle')}>{money(balances.get(a.id) ?? 0, { compact: true, plain: true })}</span>}
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
