@@ -216,3 +216,27 @@ html[data-motion='off'] *::after {
   60% { transform: translateX(-5px); }
   80% { transform: translateX(5px); }
 }
+
+/* ───────────── Zoomni o‘chirish (telefon) ───────────── */
+html,
+body {
+  /* Faqat aylantirish (scroll) ruxsat — pinch-zoom va ikki marta bosib kattalashtirish yo‘q */
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+button,
+a,
+[role='button'],
+[role='radio'],
+[role='switch'] {
+  touch-action: manipulation;
+}
+/* iOS Safari 16px dan kichik shriftli maydonga bosilganda sahifani avtomatik kattalashtiradi */
+@media (max-width: 1023px) {
+  input:not(.text-3xl),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
