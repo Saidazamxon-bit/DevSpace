@@ -1,0 +1,218 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────────── Dizayn tokenlari ───────────── */
+:root {
+  color-scheme: light;
+  --bg: 245 247 250;
+  --surface: 255 255 255;
+  --surface-2: 241 243 247;
+  --line: 229 232 238;
+  --ink: 22 26 34;
+  --muted: 98 106 121;
+  --subtle: 146 153 167;
+  --income: 4 145 99;
+  --expense: 220 59 64;
+  --warn: 207 116 6;
+
+  --accent: 29 78 216;
+  --accent-ink: 255 255 255;
+
+  --hero-bg: 13 15 20;
+  --radius-card: 1.25rem;
+  --card-pad: 1.25rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: 10 11 14;
+  --surface: 21 23 28;
+  --surface-2: 30 33 40;
+  --line: 40 44 53;
+  --ink: 238 240 244;
+  --muted: 156 163 176;
+  --subtle: 108 116 130;
+  --income: 52 211 153;
+  --expense: 248 113 113;
+  --warn: 251 191 36;
+  --accent: 59 130 246;
+  --hero-bg: 17 19 25;
+}
+
+/* Aksent ranglar: [yorug‘] va [qorong‘i] mavzu uchun alohida tanlangan */
+[data-accent='green'] { --accent: 4 120 87; }
+.dark[data-accent='green'] { --accent: 16 185 129; --accent-ink: 4 30 22; }
+[data-accent='violet'] { --accent: 109 40 217; }
+.dark[data-accent='violet'] { --accent: 139 92 246; }
+[data-accent='orange'] { --accent: 194 65 12; }
+.dark[data-accent='orange'] { --accent: 251 146 60; --accent-ink: 40 18 4; }
+[data-accent='pink'] { --accent: 190 24 93; }
+.dark[data-accent='pink'] { --accent: 244 114 182; --accent-ink: 45 8 26; }
+[data-accent='teal'] { --accent: 15 118 110; }
+.dark[data-accent='teal'] { --accent: 45 212 191; --accent-ink: 4 34 31; }
+[data-accent='gold'] { --accent: 161 98 7; }
+.dark[data-accent='gold'] { --accent: 245 184 61; --accent-ink: 36 24 2; }
+
+html[data-density='compact'] {
+  font-size: 14.5px;
+  --card-pad: 1rem;
+  --radius-card: 1rem;
+}
+
+html,
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  font-feature-settings: 'cv11', 'ss01';
+}
+#root {
+  min-height: 100dvh;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Animatsiyalar o‘chirilgan yoki tizimda reduced motion yoqilgan */
+html[data-motion='off'] *,
+html[data-motion='off'] *::before,
+html[data-motion='off'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-line/70 shadow-card;
+    border-radius: var(--radius-card);
+    padding: var(--card-pad);
+  }
+  .card-flush {
+    @apply bg-surface border border-line/70 shadow-card overflow-hidden;
+    border-radius: var(--radius-card);
+  }
+  .section-title {
+    @apply text-[15px] font-semibold tracking-tight text-ink;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 h-11 text-sm font-semibold select-none
+      transition-[background-color,box-shadow,transform,color,opacity] duration-150 active:scale-[0.97]
+      disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+  .btn-sm {
+    @apply h-9 px-3 text-[13px] rounded-lg;
+  }
+  .btn-primary {
+    @apply bg-accent text-accent-ink hover:brightness-110 shadow-sm;
+  }
+  .btn-secondary {
+    @apply bg-surface-2 text-ink hover:bg-line/80;
+  }
+  .btn-outline {
+    @apply border border-line bg-surface text-ink hover:bg-surface-2;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-surface-2 hover:text-ink;
+  }
+  .btn-danger {
+    @apply bg-expense text-white hover:brightness-110;
+  }
+  .icon-btn {
+    @apply inline-flex items-center justify-center h-10 w-10 rounded-full text-muted transition-colors duration-150
+      hover:bg-surface-2 hover:text-ink active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60;
+  }
+  .input {
+    @apply w-full h-11 rounded-xl border border-line bg-surface px-3.5 text-[15px] text-ink placeholder:text-subtle
+      transition-[border-color,box-shadow] duration-150 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/15
+      disabled:opacity-60;
+  }
+  .input-error {
+    @apply border-expense focus:border-expense focus:ring-expense/15;
+  }
+  textarea.input {
+    @apply h-auto py-2.5 resize-none;
+  }
+  select.input {
+    @apply appearance-none pr-9 bg-no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23949aa7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+  }
+  .label {
+    @apply block text-[13px] font-medium text-muted mb-1.5;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[13px] font-medium border border-line bg-surface text-muted
+      transition-colors hover:text-ink hover:border-subtle/60;
+  }
+  .chip-active {
+    @apply bg-accent/10 border-accent/40 text-accent hover:text-accent hover:border-accent/50;
+  }
+  .hero {
+    background-color: rgb(var(--hero-bg));
+    background-image:
+      radial-gradient(120% 90% at 85% 0%, rgb(var(--accent) / 0.55) 0%, transparent 55%),
+      radial-gradient(80% 70% at 0% 100%, rgb(var(--accent) / 0.22) 0%, transparent 60%);
+    color: #fff;
+  }
+  .pressable {
+    @apply transition-transform duration-150 active:scale-[0.98];
+  }
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-surface-2;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background: linear-gradient(90deg, transparent, rgb(var(--surface) / 0.6), transparent);
+  }
+}
+
+/* Recharts fokus konturini yashirish (klaviatura fokusini tooltip bilan ko‘rsatamiz) */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-sector:focus,
+.recharts-rectangle:focus {
+  outline: none;
+}
+
+/* Sana kiritish maydoni ikonkasi qorong‘i mavzuda */
+.dark input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
