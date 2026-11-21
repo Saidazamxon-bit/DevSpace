@@ -229,6 +229,11 @@ body {
   overflow-x: hidden;
   overscroll-behavior-x: none;
 }
+/* Ilovadek: ekranni chegaradan tortganda “rezina” bo‘shliq chiqmasin */
+html,
+body {
+  overscroll-behavior-y: none;
+}
 @supports (overflow: clip) {
   html,
   body {
@@ -348,4 +353,39 @@ input[type='date'] {
     opacity: 1;
     transform: none;
   }
+}
+
+/* Asosiy ekran: hero blok */
+.hero-bg {
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgb(255 255 255 / 0.16), transparent 60%),
+    linear-gradient(165deg, rgb(var(--accent)) 0%, rgb(var(--accent) / 0.86) 45%, rgb(var(--accent) / 0.62) 100%),
+    rgb(8 14 26);
+}
+.hero-rings {
+  opacity: 0.1;
+  background-image: radial-gradient(circle at 50% 42%, transparent 0 70px, #fff 71px 72px, transparent 73px 130px, #fff 131px 132px, transparent 133px 200px, #fff 201px 202px, transparent 203px);
+}
+.hero-btn {
+  display: grid;
+  place-items: center;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.15);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.15s, transform 0.15s;
+}
+.hero-btn:hover { background: rgb(255 255 255 / 0.25); }
+.hero-btn:active { transform: scale(0.94); }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.dark .hero-bg {
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgb(255 255 255 / 0.1), transparent 60%),
+    linear-gradient(165deg, rgb(var(--accent) / 0.78) 0%, rgb(var(--accent) / 0.5) 50%, rgb(var(--accent) / 0.28) 100%),
+    rgb(10 14 24);
 }
