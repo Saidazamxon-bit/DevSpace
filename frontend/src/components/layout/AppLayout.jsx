@@ -6,18 +6,19 @@ import MobileNav from './MobileNav';
 import { useAuth } from '../../context/AuthContext';
 import { useMediaQuery } from '../../hooks/useApi';
 import { DEMO } from '../../api/client';
+import { t } from '../../i18n';
 
 function DemoBanner() {
   const reset = async () => {
-    if (!window.confirm('Reset all demo data to the original sample?')) return;
+    if (!window.confirm(t('Reset all demo data to the original sample?'))) return;
     const m = await import('../../api/demo/server');
     m.resetDemo();
     window.location.reload();
   };
   return (
     <div className="demo-banner" role="note">
-      <span><strong>Demo mode</strong> · sample data, saved only in this browser. Backend features (live checks, backups) are disabled.</span>
-      <button type="button" className="link-btn" onClick={reset}>Reset demo</button>
+      <span><strong>{t('Demo mode')}</strong> · {t('sample data, saved only in this browser. Backend features (live checks, backups) are disabled.')}</span>
+      <button type="button" className="link-btn" onClick={reset}>{t('Reset demo')}</button>
     </div>
   );
 }
@@ -38,7 +39,7 @@ export default function AppLayout() {
 
   return (
     <div className={`app${collapsed || (isTablet && !isMobile) ? ' is-collapsed' : ''}`}>
-      <a href="#main" className="skip-link">Skip to content</a>
+      <a href="#main" className="skip-link">{t('Skip to content')}</a>
       <Sidebar
         collapsed={collapsed}
         onToggleCollapse={() => updatePreferences({ sidebar_collapsed: !settings?.sidebar_collapsed })}

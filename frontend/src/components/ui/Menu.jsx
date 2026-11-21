@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { t } from '../../i18n';
 
 /** Kebab dropdown: items = [{ label, icon, onClick, danger }] */
-export default function Menu({ items, label = 'Actions', trigger }) {
+export default function Menu({ items, label = t('Actions'), trigger }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {

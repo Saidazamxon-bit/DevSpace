@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { t } from '../../i18n';
 
 export default function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }) {
   const panel = useRef(null);
@@ -10,12 +11,12 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
     document.body.classList.add('no-scroll');
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const el = panel.current?.querySelector('[autofocus], input:not([type=hidden]), select, textarea, button.btn-primary');
       el?.focus();
     }, 30);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       document.removeEventListener('keydown', onKey);
       document.body.classList.remove('no-scroll');
       prev?.focus?.();
@@ -31,7 +32,7 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
             <h2>{title}</h2>
             {subtitle && <p className="muted small">{subtitle}</p>}
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label={t('Close')}><X size={18} /></button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}

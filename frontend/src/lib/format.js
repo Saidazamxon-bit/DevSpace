@@ -1,4 +1,32 @@
+import { lang, t } from '../i18n';
+
 const pad = (n) => String(n).padStart(2, '0');
+
+const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const UZ_MONTHS_SHORT = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
+const UZ_DAYS = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
+const UZ_DAYS_SHORT = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
+
+/**
+ * Locale-aware date formatting with Intl-like options.
+ * Uzbek is formatted by hand (e.g. "shanba, 21-noyabr, 2026") so it never depends on browser locale data.
+ */
+export function fmtDate(d, opts = {}) {
+  if (!d) return '—';
+  if (lang !== 'uz') return d.toLocaleDateString('en-US', opts);
+  const parts = [];
+  if (opts.weekday) parts.push(opts.weekday === 'long' ? UZ_DAYS[d.getDay()] : UZ_DAYS_SHORT[d.getDay()]);
+  const month = opts.month ? (opts.month === 'long' ? UZ_MONTHS : UZ_MONTHS_SHORT)[d.getMonth()] : null;
+  let main = '';
+  if (opts.day && month) main = `${d.getDate()}-${month}`;
+  else if (opts.day) main = String(d.getDate());
+  else if (month) main = month;
+  if (main) parts.push(main);
+  let out = parts.join(opts.weekday && opts.day && !month ? ' ' : ', ');
+  if (opts.year) out += opts.day ? `, ${d.getFullYear()}` : ` ${d.getFullYear()}`;
+  if (opts.hour) out += `, ${pad(d.getHours())}:00`;
+  return out;
+}
 
 /*
  * All timestamps from the API are wall-clock times in the server's timezone.
@@ -27,7 +55,7 @@ export const toISODate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${p
 
 export function formatDate(value, opts = { month: 'short', day: 'numeric', year: 'numeric' }) {
   const d = parseDate(value);
-  return d ? d.toLocaleDateString('en-US', opts) : '—';
+  return d ? fmtDate(d, opts) : '—';
 }
 export const formatShortDate = (v) => formatDate(v, { month: 'short', day: 'numeric' });
 export function formatTime(value) {
@@ -49,20 +77,20 @@ export function daysUntil(value) {
 
 export function relativeDays(days) {
   if (days === null || days === undefined) return '—';
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Tomorrow';
-  if (days === -1) return 'Yesterday';
-  return days > 0 ? `in ${days} days` : `${Math.abs(days)} days ago`;
+  if (days === 0) return t('Today');
+  if (days === 1) return t('Tomorrow');
+  if (days === -1) return t('Yesterday');
+  return days > 0 ? t('in {n} days', { n: days }) : t('{n} days ago', { n: Math.abs(days) });
 }
 
 export function timeAgo(value) {
   const d = parseDate(value);
   if (!d) return '';
   const s = Math.round((serverNow().getTime() - d.getTime()) / 1000);
-  if (s < 45) return 'just now';
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
-  if (s < 604800) return `${Math.round(s / 86400)}d ago`;
+  if (s < 45) return t('just now');
+  if (s < 3600) return t('{n}m ago', { n: Math.round(s / 60) });
+  if (s < 86400) return t('{n}h ago', { n: Math.round(s / 3600) });
+  if (s < 604800) return t('{n}d ago', { n: Math.round(s / 86400) });
   return formatDate(d);
 }
 
@@ -84,12 +112,14 @@ export function formatBytes(bytes) {
 }
 
 export function formatDuration(seconds) {
-  if (seconds < 60) return `${seconds}s`;
+  const u = lang === 'uz' ? { s: 's', m: 'daq', h: 'soat', d: 'kun' } : { s: 's', m: 'm', h: 'h', d: 'd' };
+  const sp = lang === 'uz' ? ' ' : '';
+  if (seconds < 60) return `${seconds}${sp}${u.s}`;
   const m = Math.floor(seconds / 60);
-  if (m < 60) return `${m}m`;
+  if (m < 60) return `${m}${sp}${u.m}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ${m % 60}m`;
-  return `${Math.floor(h / 24)}d ${h % 24}h`;
+  if (h < 24) return `${h}${sp}${u.h} ${m % 60}${sp}${u.m}`;
+  return `${Math.floor(h / 24)}${sp}${u.d} ${h % 24}${sp}${u.h}`;
 }
 
 export const splitList = (s) => (s ? String(s).split(',').map((x) => x.trim()).filter(Boolean) : []);

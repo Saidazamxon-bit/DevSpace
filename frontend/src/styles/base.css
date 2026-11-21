@@ -215,7 +215,9 @@ code, pre, kbd { font-family: var(--mono); }
 
 .sidebar-bottom { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border-soft); margin-top: 10px; }
 .theme-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--card); border: 1px solid var(--border-soft); padding: 4px; border-radius: 12px; }
-.theme-switch button { border: 0; background: transparent; color: var(--muted); height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; cursor: pointer; transition: 0.18s; }
+.theme-switch button { border: 0; background: transparent; color: var(--muted); height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; cursor: pointer; transition: 0.18s; min-width: 0; padding: 0 2px; overflow: hidden; }
+.theme-switch button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-switch button svg { flex: none; }
 .theme-switch button:hover { color: var(--text); }
 .theme-switch button.active { background: var(--card-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
 .theme-switch button.active svg { color: var(--accent-ink); }

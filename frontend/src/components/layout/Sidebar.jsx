@@ -4,11 +4,12 @@ import Logo from './Logo';
 import { NAV } from './nav';
 import { useAuth } from '../../context/AuthContext';
 import { initials } from '../../lib/format';
+import { t } from '../../i18n';
 
 const THEMES = [
-  { value: 'dark', icon: Moon, label: 'Dark' },
-  { value: 'light', icon: Sun, label: 'Light' },
-  { value: 'system', icon: Monitor, label: 'System' },
+  { value: 'dark', icon: Moon, label: t('Dark') },
+  { value: 'light', icon: Sun, label: t('Light') },
+  { value: 'system', icon: Monitor, label: t('System') },
 ];
 
 export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onCloseDrawer, badges = {} }) {
@@ -18,13 +19,13 @@ export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onClo
   return (
     <>
       <div className={`drawer-backdrop${drawerOpen ? ' show' : ''}`} onClick={onCloseDrawer} aria-hidden="true" />
-      <aside className={`sidebar${collapsed ? ' collapsed' : ''}${drawerOpen ? ' open' : ''}`} aria-label="Main navigation">
+      <aside className={`sidebar${collapsed ? ' collapsed' : ''}${drawerOpen ? ' open' : ''}`} aria-label={t('Main navigation')}>
         <div className="sidebar-top">
           <Logo collapsed={collapsed && !drawerOpen} />
-          <button type="button" className="icon-btn drawer-close" onClick={onCloseDrawer} aria-label="Close menu"><X size={18} /></button>
+          <button type="button" className="icon-btn drawer-close" onClick={onCloseDrawer} aria-label={t('Close menu')}><X size={18} /></button>
         </div>
 
-        <p className="nav-label">Navigation</p>
+        <p className="nav-label">{t('Navigation')}</p>
         <nav className="nav">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className="nav-item" onClick={onCloseDrawer} title={collapsed ? label : undefined}>
@@ -36,26 +37,26 @@ export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onClo
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="theme-switch" role="radiogroup" aria-label="Theme">
+          <div className="theme-switch" role="radiogroup" aria-label={t('Theme')}>
             {THEMES.map(({ value, icon: Icon, label }) => (
-              <button key={value} type="button" role="radio" aria-checked={theme === value} className={theme === value ? 'active' : ''} onClick={() => updatePreferences({ theme: value })} title={`${label} theme`}>
+              <button key={value} type="button" role="radio" aria-checked={theme === value} className={theme === value ? 'active' : ''} onClick={() => updatePreferences({ theme: value })} title={t('{name} theme', { name: label })}>
                 <Icon size={15} /><span>{label}</span>
               </button>
             ))}
           </div>
 
           <div className="sidebar-user">
-            <NavLink to="/settings" className="avatar" onClick={onCloseDrawer} title="Profile settings">{initials(user?.name)}</NavLink>
+            <NavLink to="/settings" className="avatar" onClick={onCloseDrawer} title={t('Profile settings')}>{initials(user?.name)}</NavLink>
             <div className="sidebar-user-text">
               <strong>{user?.name}</strong>
               <span>{user?.email}</span>
             </div>
-            <button type="button" className="icon-btn" onClick={logout} title="Sign out" aria-label="Sign out"><LogOut size={16} /></button>
+            <button type="button" className="icon-btn" onClick={logout} title={t('Sign out')} aria-label={t('Sign out')}><LogOut size={16} /></button>
           </div>
 
-          <button type="button" className="collapse-btn" onClick={onToggleCollapse} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <button type="button" className="collapse-btn" onClick={onToggleCollapse} aria-label={collapsed ? t('Expand sidebar') : t('Collapse sidebar')}>
             {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-            <span>Collapse</span>
+            <span>{t('Collapse')}</span>
           </button>
         </div>
       </aside>

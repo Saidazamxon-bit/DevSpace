@@ -8,16 +8,17 @@ import { useDebounce } from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { humanize, initials, timeAgo } from '../../lib/format';
 import { LogoMark } from './Logo';
+import { t, tr } from '../../i18n';
 
 const TYPE_ICONS = { project: FolderKanban, task: ListChecks, domain: Globe, server: Server, monitor: Activity, credential: KeyRound, snippet: Code2, expense: Wallet };
 
 const QUICK = [
-  { label: 'New task', icon: ListChecks, to: '/tasks?new=1' },
-  { label: 'New project', icon: FolderKanban, to: '/projects?new=1' },
-  { label: 'New domain', icon: Globe, to: '/domains?new=1' },
-  { label: 'New monitor', icon: Activity, to: '/monitoring?new=1' },
-  { label: 'New expense', icon: Wallet, to: '/expenses?new=1' },
-  { label: 'New snippet', icon: Code2, to: '/snippets?new=1' },
+  { label: t('New task'), icon: ListChecks, to: '/tasks?new=1' },
+  { label: t('New project'), icon: FolderKanban, to: '/projects?new=1' },
+  { label: t('New domain'), icon: Globe, to: '/domains?new=1' },
+  { label: t('New monitor'), icon: Activity, to: '/monitoring?new=1' },
+  { label: t('New expense'), icon: Wallet, to: '/expenses?new=1' },
+  { label: t('New snippet'), icon: Code2, to: '/snippets?new=1' },
 ];
 
 function useOutside(ref, open, close) {
@@ -70,17 +71,17 @@ function GlobalSearch({ mobileOpen, onCloseMobile }) {
     <div className={`global-search${mobileOpen ? ' mobile-open' : ''}`} ref={ref}>
       <Search size={17} className="gs-icon" />
       <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={onKeyDown}
-        placeholder="Search projects, tasks, domains, snippets…" aria-label="Search everything" />
+        placeholder={t('Search projects, tasks, domains, snippets…')} aria-label={t('Search everything')} />
       <kbd className="gs-kbd">⌘K</kbd>
-      {mobileOpen && <button type="button" className="icon-btn gs-close" onClick={onCloseMobile} aria-label="Close search"><X size={18} /></button>}
+      {mobileOpen && <button type="button" className="icon-btn gs-close" onClick={onCloseMobile} aria-label={t('Close search')}><X size={18} /></button>}
       {open && q.trim().length >= 2 && (
         <div className="popover search-pop">
-          {results.length === 0 ? <p className="popover-empty">No results for “{q}”</p> : results.map((r, i) => {
+          {results.length === 0 ? <p className="popover-empty">{t('No results for “{q}”', { q })}</p> : results.map((r, i) => {
             const Icon = TYPE_ICONS[r.type] || Search;
             return (
               <button key={`${r.type}-${r.id}`} type="button" className={`search-item${i === active ? ' active' : ''}`} onMouseEnter={() => setActive(i)} onClick={() => go(r)}>
                 <span className="search-item-icon"><Icon size={15} /></span>
-                <span className="search-item-text"><strong>{r.title}</strong><small>{humanize(r.type)}{r.meta ? ` · ${r.meta}` : ''}</small></span>
+                <span className="search-item-text"><strong>{r.title}</strong><small>{t(humanize(r.type))}{r.meta ? ` · ${r.meta}` : ''}</small></span>
               </button>
             );
           })}
@@ -110,25 +111,25 @@ function Notifications() {
 
   return (
     <div className="notif" ref={ref}>
-      <button type="button" className="round-btn" onClick={() => setOpen((o) => !o)} aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`} aria-expanded={open}>
+      <button type="button" className="round-btn" onClick={() => setOpen((o) => !o)} aria-label={unread ? t('Notifications ({n} unread)', { n: unread }) : t('Notifications')} aria-expanded={open}>
         <Bell size={18} />
         {unread > 0 && <span className="round-btn-dot">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
         <div className="popover notif-pop">
           <div className="popover-head">
-            <strong>Notifications</strong>
-            {unread > 0 && <button type="button" className="link-btn" onClick={readAll}><CheckCheck size={14} /> Mark all read</button>}
+            <strong>{t('Notifications')}</strong>
+            {unread > 0 && <button type="button" className="link-btn" onClick={readAll}><CheckCheck size={14} /> {t('Mark all read')}</button>}
           </div>
           <div className="notif-list">
-            {items.length === 0 && <p className="popover-empty">You’re all caught up.</p>}
+            {items.length === 0 && <p className="popover-empty">{t('You’re all caught up.')}</p>}
             {items.map((n) => (
               <div key={n.id} className={`notif-item level-${n.level}${n.read_at ? '' : ' unread'}`}>
                 <button type="button" className="notif-main" onClick={() => openItem(n)}>
                   <i className="notif-dot" />
-                  <span><strong>{n.title}</strong>{n.body && <small>{n.body}</small>}<em>{timeAgo(n.created_at)}</em></span>
+                  <span><strong>{tr(n.title)}</strong>{n.body && <small>{tr(n.body)}</small>}<em>{timeAgo(n.created_at)}</em></span>
                 </button>
-                <button type="button" className="icon-btn sm" onClick={() => remove(n)} aria-label="Delete notification"><Trash2 size={13} /></button>
+                <button type="button" className="icon-btn sm" onClick={() => remove(n)} aria-label={t('Delete notification')}><Trash2 size={13} /></button>
               </div>
             ))}
           </div>
@@ -145,7 +146,7 @@ function QuickAdd() {
   return (
     <div className="quick-add" ref={ref}>
       <button type="button" className="btn btn-primary btn-md quick-add-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <Plus size={17} /><span>Quick add</span>
+        <Plus size={17} /><span>{t('Quick add')}</span>
       </button>
       {open && (
         <div className="popover menu-pop quick-pop">
@@ -163,11 +164,11 @@ export default function Topbar({ onMenu }) {
   const [mobileSearch, setMobileSearch] = useState(false);
   return (
     <header className="topbar">
-      <button type="button" className="round-btn menu-btn" onClick={onMenu} aria-label="Open menu"><MenuIcon size={19} /></button>
-      <Link to="/" className="topbar-logo" aria-label="DEVSPACE home"><LogoMark size={28} /><strong>DEVSPACE</strong></Link>
+      <button type="button" className="round-btn menu-btn" onClick={onMenu} aria-label={t('Open menu')}><MenuIcon size={19} /></button>
+      <Link to="/" className="topbar-logo" aria-label={t('DEVSPACE home')}><LogoMark size={28} /><strong>DEVSPACE</strong></Link>
       <GlobalSearch mobileOpen={mobileSearch} onCloseMobile={() => setMobileSearch(false)} />
       <div className="topbar-right">
-        <button type="button" className="round-btn search-btn" onClick={() => setMobileSearch(true)} aria-label="Search"><Search size={18} /></button>
+        <button type="button" className="round-btn search-btn" onClick={() => setMobileSearch(true)} aria-label={t('Search')}><Search size={18} /></button>
         <Notifications />
         <QuickAdd />
         <Link to="/settings" className="avatar avatar-lg" title={user?.name}>{initials(user?.name)}</Link>

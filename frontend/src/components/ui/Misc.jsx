@@ -1,4 +1,5 @@
 import { Inbox, Loader2, Search, X } from 'lucide-react';
+import { t } from '../../i18n';
 
 export function Badge({ tone = 'neutral', children, dot }) {
   return <span className={`badge badge-${tone}`}>{dot && <i className="badge-dot" />}{children}</span>;
@@ -15,7 +16,7 @@ export function EmptyState({ icon: Icon = Inbox, title, text, action }) {
   );
 }
 
-export function Spinner({ label = 'Loading…' }) {
+export function Spinner({ label = t('Loading…') }) {
   return <div className="spinner-wrap"><Loader2 className="spin" size={22} /><span>{label}</span></div>;
 }
 
@@ -30,19 +31,19 @@ export function SkeletonCards({ count = 4, h = 140 }) {
 export function ErrorState({ error, onRetry }) {
   return (
     <div className="empty">
-      <h3>Couldn’t load this data</h3>
+      <h3>{t('Couldn’t load this data')}</h3>
       <p>{error?.message}</p>
-      {onRetry && <button type="button" className="btn btn-secondary btn-md" onClick={() => onRetry()}>Try again</button>}
+      {onRetry && <button type="button" className="btn btn-secondary btn-md" onClick={() => onRetry()}>{t('Try again')}</button>}
     </div>
   );
 }
 
-export function SearchInput({ value, onChange, placeholder = 'Search…', className = '' }) {
+export function SearchInput({ value, onChange, placeholder = t('Search…'), className = '' }) {
   return (
     <div className={`search-input ${className}`}>
       <Search size={16} />
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
-      {value && <button type="button" onClick={() => onChange('')} aria-label="Clear search"><X size={14} /></button>}
+      {value && <button type="button" onClick={() => onChange('')} aria-label={t('Clear search')}><X size={14} /></button>}
     </div>
   );
 }

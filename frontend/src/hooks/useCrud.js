@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { del, get, post, put } from '../api/client';
 import { useUI } from '../context/UIContext';
+import { t } from '../i18n';
 
 /** Shared create / update / delete helpers with toasts + confirmation. */
 export function useCrud(base, { entity = 'item', onChange } = {}) {
@@ -9,22 +10,22 @@ export function useCrud(base, { entity = 'item', onChange } = {}) {
 
   const save = useCallback(async (values, id) => {
     const res = id ? await put(`${base}/${id}`, values) : await post(base, values);
-    toast(id ? `${cap(entity)} updated` : `${cap(entity)} created`);
+    toast(id ? t(`${cap(entity)} updated`) : t(`${cap(entity)} created`));
     onChange?.();
     return res.data;
   }, [base, entity, onChange, toast]);
 
   const remove = useCallback(async (row, label) => {
     const ok = await confirm({
-      title: `Delete ${entity}?`,
-      message: `“${label}” will be permanently deleted. This can’t be undone.`,
-      confirmLabel: 'Delete',
+      title: t(`Delete ${entity}?`),
+      message: t('“{label}” will be permanently deleted. This can’t be undone.', { label }),
+      confirmLabel: t('Delete'),
       danger: true,
     });
     if (!ok) return false;
     try {
       await del(`${base}/${row.id}`);
-      toast(`${cap(entity)} deleted`);
+      toast(t(`${cap(entity)} deleted`));
       onChange?.();
       return true;
     } catch (e) {

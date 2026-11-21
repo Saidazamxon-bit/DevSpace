@@ -352,3 +352,5 @@ a.tl-card:hover { transform: translateY(-2px); border-color: var(--border); }
 .demo-banner strong { color: var(--accent-ink); }
 .demo-hint { background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--text-2); }
 .demo-hint strong { color: var(--accent-ink); font-weight: 600; }
+.auth-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.auth-top .lang-switch { margin-left: auto; }

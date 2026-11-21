@@ -8,14 +8,16 @@ import { useApi } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { BarChart, useThemeTokens } from '../components/ui/Charts';
 import { ErrorState, Segmented, Skeleton } from '../components/ui/Misc';
-import { formatShortDate, formatTime, parseDate, relativeDays, serverNow, syncServerTime, timeAgo, todayISO } from '../lib/format';
+import { fmtDate, formatShortDate, formatTime, parseDate, relativeDays, serverNow, syncServerTime, timeAgo, todayISO } from '../lib/format';
+import { t, tr } from '../i18n';
+import { statusLabel } from '../lib/constants';
 
 /* ---------------- Stat cards ---------------- */
 
 function Barcode({ percent, count = 64 }) {
   const lit = Math.round((percent / 100) * count);
   return (
-    <div className="barcode" role="img" aria-label={`${percent}% complete`}>
+    <div className="barcode" role="img" aria-label={t('{n}% complete', { n: percent })}>
       {Array.from({ length: count }).map((_, i) => <i key={i} className={i < lit ? 'on' : ''} />)}
     </div>
   );
@@ -24,7 +26,7 @@ function Barcode({ percent, count = 64 }) {
 function ThickBars({ done, total, count = 24 }) {
   const lit = total ? Math.round((done / total) * count) : 0;
   return (
-    <div className="thickbars" role="img" aria-label={`${done} of ${total} tasks done`}>
+    <div className="thickbars" role="img" aria-label={t('{done} of {total} tasks done', { done, total })}>
       {Array.from({ length: count }).map((_, i) => <i key={i} className={i < lit ? 'on' : ''} />)}
     </div>
   );
@@ -45,23 +47,23 @@ function StatCard({ title, icon: Icon, value, foot, to, children }) {
 }
 
 function Stats({ stats }) {
-  const { projects: p, servers: s, tasks: t, domains: d } = stats;
+  const { projects: p, servers: s, tasks: k, domains: d } = stats;
   const serverTone = (st) => ({ online: 'on', maintenance: 'warn', offline: 'off' }[st]);
   const domainTone = (st) => ({ active: 'on', expiring: 'warn', expired: 'off', unknown: '' }[st]);
 
   return (
     <div className="stats">
-      <StatCard title="Projects" icon={FolderKanban} to="/projects" value={<>{p.active}<small> active</small><em>/ {p.total} total</em></>}
-        foot={p.tasks_total ? `${p.progress}% of ${p.tasks_total} tasks done in open projects` : `${p.completed} completed · ${p.planning} planning`}>
+      <StatCard title={t('Projects')} icon={FolderKanban} to="/projects" value={<>{p.active}<small> {t('active')}</small><em>{t('/ {n} total', { n: p.total })}</em></>}
+        foot={p.tasks_total ? t('{p}% of {n} tasks done in open projects', { p: p.progress, n: p.tasks_total }) : t('{c} completed · {p} planning', { c: p.completed, p: p.planning })}>
         <Barcode percent={p.progress} />
       </StatCard>
 
-      <StatCard title="Active Servers" icon={Server} to="/servers" value={<>{s.online}<small> online</small><em>/ {s.total} servers</em></>}
-        foot={s.websites_total ? `${s.websites_up}/${s.websites_total} sites up${s.maintenance ? ` · ${s.maintenance} maintenance` : ''}${s.offline ? ` · ${s.offline} offline` : ''}` : `${s.maintenance} in maintenance · ${s.offline} offline`}>
+      <StatCard title={t('Active Servers')} icon={Server} to="/servers" value={<>{s.online}<small> {t('online')}</small><em>{t('/ {n} servers', { n: s.total })}</em></>}
+        foot={s.websites_total ? `${t('{up}/{total} sites up', { up: s.websites_up, total: s.websites_total })}${s.maintenance ? ` · ${t('{n} maintenance', { n: s.maintenance })}` : ''}${s.offline ? ` · ${t('{n} offline', { n: s.offline })}` : ''}` : `${t('{n} maintenance', { n: s.maintenance })} · ${t('{n} offline', { n: s.offline })}`}>
         <div className="bubbles">
           {s.items.length === 0 && <span className="bubble">0</span>}
           {s.items.map((x, i) => (
-            <span key={x.id} className={`bubble ${serverTone(x.status)}`} title={`${x.name} — ${x.status}`}>
+            <span key={x.id} className={`bubble ${serverTone(x.status)}`} title={`${x.name} — ${statusLabel(x.status)}`}>
               {x.status === 'online' ? i + 1 : <ServerCrash size={13} />}
             </span>
           ))}
@@ -69,17 +71,17 @@ function Stats({ stats }) {
         </div>
       </StatCard>
 
-      <StatCard title="Pending Tasks" icon={AlarmClock} to="/tasks" value={<>{t.pending}<small> pending</small><em>· {t.in_progress} in progress</em></>}
-        foot={t.overdue || t.due_today ? `${t.overdue} overdue · ${t.due_today} due today` : `${t.done_week} completed in the last 7 days`}>
-        <ThickBars done={t.done} total={t.total} />
+      <StatCard title={t('Pending Tasks')} icon={AlarmClock} to="/tasks" value={<>{k.pending}<small> {t('pending')}</small><em>{t('· {n} in progress', { n: k.in_progress })}</em></>}
+        foot={k.overdue || k.due_today ? t('{o} overdue · {d} due today', { o: k.overdue, d: k.due_today }) : t('{n} completed in the last 7 days', { n: k.done_week })}>
+        <ThickBars done={k.done} total={k.total} />
       </StatCard>
 
-      <StatCard title="Domains" icon={AlertTriangle} to="/domains" value={<>{d.total}<small> domains</small>{d.expiring + d.expired > 0 && <em className="warn">· {d.expiring + d.expired} need attention</em>}</>}
-        foot={d.next ? `Next renewal: ${d.next.name} ${d.next.days_left !== null ? relativeDays(d.next.days_left).toLowerCase() : ''}` : 'No domains tracked yet'}>
+      <StatCard title={t('Domains')} icon={AlertTriangle} to="/domains" value={<>{d.total}<small> {t('domains')}</small>{d.expiring + d.expired > 0 && <em className="warn">{t('· {n} need attention', { n: d.expiring + d.expired })}</em>}</>}
+        foot={d.next ? t('Next renewal: {name} {when}', { name: d.next.name, when: d.next.days_left !== null ? relativeDays(d.next.days_left).toLowerCase() : '' }) : t('No domains tracked yet')}>
         <div className="bubbles">
           {d.items.length === 0 && <span className="bubble">0</span>}
           {d.items.map((x) => (
-            <span key={x.id} className={`bubble icon ${domainTone(x.state)}`} title={`${x.name} — ${x.state}${x.days_left !== null ? ` (${x.days_left}d)` : ''}`}><Globe size={13} /></span>
+            <span key={x.id} className={`bubble icon ${domainTone(x.state)}`} title={`${x.name} — ${statusLabel(x.state)}${x.days_left !== null ? ` (${t('{n}d', { n: x.days_left })})` : ''}`}><Globe size={13} /></span>
           ))}
         </div>
       </StatCard>
@@ -95,7 +97,7 @@ function Timeline({ items }) {
   const scroller = useRef(null);
   const nowRef = useRef(null);
   const [now, setNow] = useState(serverNow());
-  useEffect(() => { const t = setInterval(() => setNow(serverNow()), 60000); return () => clearInterval(t); }, []);
+  useEffect(() => { const timer = setInterval(() => setNow(serverNow()), 60000); return () => clearInterval(timer); }, []);
 
   const today = todayISO();
   const { past, upcoming } = useMemo(() => {
@@ -111,19 +113,19 @@ function Timeline({ items }) {
 
   const label = (it) => {
     const day = it.at.slice(0, 10);
-    if (day === today) return it.all_day ? 'Today' : formatTime(it.at);
-    return parseDate(it.at).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+    if (day === today) return it.all_day ? t('Today') : formatTime(it.at);
+    return fmtDate(parseDate(it.at), { weekday: 'short', day: 'numeric' });
   };
 
   const renderItem = (it, i, isPast) => {
     const Icon = KIND_ICON[it.kind] || CircleDot;
     const firstUpcoming = !isPast && i === 0;
-    const pill = it.all_day && it.at.slice(0, 10) === today ? 'Due today' : it.at.slice(0, 10) === today ? formatTime(it.at) : formatShortDate(it.at);
+    const pill = it.all_day && it.at.slice(0, 10) === today ? t('Due today') : it.at.slice(0, 10) === today ? formatTime(it.at) : formatShortDate(it.at);
     const content = (
       <>
-        <span className={`tl-pill${firstUpcoming ? ' next' : ''}${it.level === 'critical' ? ' crit' : ''}`}>{it.ongoing ? 'Ongoing' : pill}</span>
-        <strong className="tl-title"><Icon size={14} />{it.title}</strong>
-        <span className="tl-sub">{it.subtitle}</span>
+        <span className={`tl-pill${firstUpcoming ? ' next' : ''}${it.level === 'critical' ? ' crit' : ''}`}>{it.ongoing ? t('Ongoing') : pill}</span>
+        <strong className="tl-title"><Icon size={14} />{tr(it.title)}</strong>
+        <span className="tl-sub">{tr(it.subtitle)}</span>
       </>
     );
     return (
@@ -137,11 +139,11 @@ function Timeline({ items }) {
   return (
     <section className="card timeline-card">
       <div className="card-head">
-        <h2><Pin size={16} className="pin" />Today’s Activity</h2>
-        <span className="card-sub">{past.length} done today · {upcoming.length} upcoming (14 days)</span>
+        <h2><Pin size={16} className="pin" />{t('Today’s Activity')}</h2>
+        <span className="card-sub">{t('{p} done today · {u} upcoming (14 days)', { p: past.length, u: upcoming.length })}</span>
       </div>
       {items.length === 0 ? (
-        <p className="muted small tl-empty">Nothing scheduled. Tasks with due dates, project deadlines, domain renewals and incidents will appear here.</p>
+        <p className="muted small tl-empty">{t('Nothing scheduled. Tasks with due dates, project deadlines, domain renewals and incidents will appear here.')}</p>
       ) : (
         <div className="tl-scroll" ref={scroller}>
           <div className="tl-track">
@@ -151,7 +153,7 @@ function Timeline({ items }) {
               <i className="tl-now-dot" />
             </div>
             {upcoming.map((it, i) => renderItem(it, i, false))}
-            {upcoming.length === 0 && <div className="tl-col"><span className="tl-label">Later</span><div className="tl-card ghost"><span className="tl-sub">Nothing else coming up — nice.</span></div></div>}
+            {upcoming.length === 0 && <div className="tl-col"><span className="tl-label">{t('Later')}</span><div className="tl-card ghost"><span className="tl-sub">{t('Nothing else coming up — nice.')}</span></div></div>}
           </div>
         </div>
       )}
@@ -162,19 +164,19 @@ function Timeline({ items }) {
 /* ---------------- Weekly chart ---------------- */
 
 const METRICS = [
-  { value: 'tasks_completed', label: 'Tasks completed', unit: 'tasks completed this week' },
-  { value: 'activity', label: 'Dev activity', unit: 'development events this week' },
-  { value: 'active_projects', label: 'Active projects', unit: 'projects worked on this week' },
+  { value: 'tasks_completed', label: t('Tasks completed'), unit: t('tasks completed this week') },
+  { value: 'activity', label: t('Dev activity'), unit: t('development events this week') },
+  { value: 'active_projects', label: t('Active projects'), unit: t('projects worked on this week') },
 ];
 
 function Weekly({ weekly, tasks }) {
   const [metric, setMetric] = useState('tasks_completed');
-  const t = useThemeTokens();
+  const tk = useThemeTokens();
   const values = weekly.days.map((d) => d[metric]);
   const avg = values.reduce((a, b) => a + b, 0) / (values.length || 1);
-  const colors = values.map((v) => (v >= avg && v > 0 ? t.accent : t.orange));
-  const labels = weekly.days.map((d) => parseDate(d.date).toLocaleDateString('en-US', { weekday: 'short' }));
-  const titles = weekly.days.map((d) => parseDate(d.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }));
+  const colors = values.map((v) => (v >= avg && v > 0 ? tk.accent : tk.orange));
+  const labels = weekly.days.map((d) => fmtDate(parseDate(d.date), { weekday: 'short' }));
+  const titles = weekly.days.map((d) => fmtDate(parseDate(d.date), { weekday: 'long', month: 'short', day: 'numeric' }));
   const m = METRICS.find((x) => x.value === metric);
 
   const prev = weekly.previous[metric];
@@ -182,32 +184,32 @@ function Weekly({ weekly, tasks }) {
   const delta = prev !== undefined && prev > 0 ? Math.round(((total - prev) / prev) * 100) : null;
   const due = weekly.due_window;
   const pct = due.total ? Math.round((due.done / due.total) * 100) : 0;
-  const busiest = weekly.busiest_day ? parseDate(weekly.busiest_day).toLocaleDateString('en-US', { weekday: 'long' }) : null;
+  const busiest = weekly.busiest_day ? fmtDate(parseDate(weekly.busiest_day), { weekday: 'long' }) : null;
   const busiestCount = weekly.busiest_day ? weekly.days.find((d) => d.date === weekly.busiest_day)?.tasks_completed : 0;
 
   return (
     <section className="card weekly-card">
       <div className="card-head wrap">
-        <h2><BarChart3 size={16} />Weekly Activity Overview</h2>
+        <h2><BarChart3 size={16} />{t('Weekly Activity Overview')}</h2>
         <Segmented size="sm" options={METRICS} value={metric} onChange={setMetric} />
       </div>
       <div className="weekly-total">
         <strong>{total}</strong>
-        <span>{m.unit}{delta !== null && <em className={delta >= 0 ? 'up' : 'down'}>{delta >= 0 ? '+' : ''}{delta}% vs last week</em>}</span>
+        <span>{m.unit}{delta !== null && <em className={delta >= 0 ? 'up' : 'down'}>{t('{d}% vs last week', { d: `${delta >= 0 ? '+' : ''}${delta}` })}</em>}</span>
       </div>
       <BarChart labels={labels} titles={titles} values={values} colors={colors} label={m.label} height={250} />
       <div className="chart-legend">
-        <span><i style={{ background: t.accent }} />At or above daily average ({avg.toFixed(1)})</span>
-        <span><i style={{ background: t.orange }} />Below average</span>
+        <span><i style={{ background: tk.accent }} />{t('At or above daily average ({n})', { n: avg.toFixed(1) })}</span>
+        <span><i style={{ background: tk.orange }} />{t('Below average')}</span>
       </div>
 
       <div className="weekly-summary">
-        <h3>{due.total ? <>You’ve completed {pct}% of the tasks due this week</> : <>No tasks are due this week</>} <span className="ink">{due.done}/{due.total}</span></h3>
+        <h3>{due.total ? t('You’ve completed {n}% of the tasks due this week', { n: pct }) : t('No tasks are due this week')} <span className="ink">{due.done}/{due.total}</span></h3>
         <ul>
-          {tasks.overdue > 0 && <li><AlertTriangle size={14} className="c-orange" />{tasks.overdue} overdue task{tasks.overdue > 1 ? 's' : ''} — clear {tasks.overdue > 1 ? 'them' : 'it'} before starting new work.</li>}
-          <li><CheckCircle2 size={14} className="ink" />Average {weekly.avg_per_day} tasks/day · {weekly.totals.tasks_completed} completed vs {weekly.previous.tasks_completed} the previous week.</li>
-          {busiest && <li><Sparkles size={14} className="ink" />Most productive day: {busiest} ({busiestCount} task{busiestCount > 1 ? 's' : ''} completed).</li>}
-          <li><History size={14} className="muted" />{weekly.totals.activity} logged changes across {weekly.totals.active_projects} project{weekly.totals.active_projects === 1 ? '' : 's'} in the last 7 days.</li>
+          {tasks.overdue > 0 && <li><AlertTriangle size={14} className="c-orange" />{tasks.overdue > 1 ? t('{n} overdue tasks — clear them before starting new work.', { n: tasks.overdue }) : t('1 overdue task — clear it before starting new work.')}</li>}
+          <li><CheckCircle2 size={14} className="ink" />{t('Average {a} tasks/day · {c} completed vs {p} the previous week.', { a: weekly.avg_per_day, c: weekly.totals.tasks_completed, p: weekly.previous.tasks_completed })}</li>
+          {busiest && <li><Sparkles size={14} className="ink" />{t('Most productive day: {day} ({n} tasks completed).', { day: busiest, n: busiestCount })}</li>}
+          <li><History size={14} className="muted" />{t('{a} logged changes across {p} projects in the last 7 days.', { a: weekly.totals.activity, p: weekly.totals.active_projects })}</li>
         </ul>
       </div>
     </section>
@@ -223,7 +225,7 @@ function Insight({ icon: Icon, tone = 'accent', title, children, to, count }) {
         <span className={`insight-icon tone-${tone}`}><Icon size={14} /></span>
         <strong>{title}</strong>
         {count !== undefined && <span className="insight-count">{count}</span>}
-        {to && <Link to={to} className="insight-link" aria-label={`Open ${title}`}><ArrowRight size={14} /></Link>}
+        {to && <Link to={to} className="insight-link" aria-label={t('Open {name}', { name: title })}><ArrowRight size={14} /></Link>}
       </div>
       <div className="insight-body">{children}</div>
     </div>
@@ -231,16 +233,16 @@ function Insight({ icon: Icon, tone = 'accent', title, children, to, count }) {
 }
 
 function Insights({ data }) {
-  const dl = (n) => (n < 0 ? <span className="c-danger">{Math.abs(n)}d overdue</span> : n === 0 ? <span className="c-orange">today</span> : <span className="muted">{n}d</span>);
+  const dl = (n) => (n < 0 ? <span className="c-danger">{t('{n}d overdue', { n: Math.abs(n) })}</span> : n === 0 ? <span className="c-orange">{t('today')}</span> : <span className="muted">{t('{n}d', { n })}</span>);
   return (
-    <aside className="card insights-card" aria-label="Developer insights">
+    <aside className="card insights-card" aria-label={t('Developer Insights')}>
       <div className="insights-title">
-        <h2><Sparkles size={16} />Developer Insights</h2>
-        <p>Live signals from your projects, servers and tasks.</p>
+        <h2><Sparkles size={16} />{t('Developer Insights')}</h2>
+        <p>{t('Live signals from your projects, servers and tasks.')}</p>
       </div>
 
-      <Insight icon={CalendarClock} title="Upcoming deadlines" to="/tasks" tone="accent">
-        {data.deadlines.length === 0 ? <p>No dated work coming up.</p> : (
+      <Insight icon={CalendarClock} title={t('Upcoming deadlines')} to="/tasks" tone="accent">
+        {data.deadlines.length === 0 ? <p>{t('No dated work coming up.')}</p> : (
           <ul className="ins-list">
             {data.deadlines.map((x) => (
               <li key={`${x.kind}-${x.id}`}>
@@ -252,21 +254,21 @@ function Insights({ data }) {
         )}
       </Insight>
 
-      <Insight icon={ServerCrash} title="Server warnings" to="/monitoring" tone={data.server_warnings.length ? 'danger' : 'accent'} count={data.server_warnings.length || undefined}>
-        {data.server_warnings.length === 0 ? <p>All servers online and monitored sites healthy.</p> : (
+      <Insight icon={ServerCrash} title={t('Server warnings')} to="/monitoring" tone={data.server_warnings.length ? 'danger' : 'accent'} count={data.server_warnings.length || undefined}>
+        {data.server_warnings.length === 0 ? <p>{t('All servers online and monitored sites healthy.')}</p> : (
           <ul className="ins-list">
             {data.server_warnings.slice(0, 4).map((w) => (
               <li key={`${w.kind}-${w.id}`}>
                 <Link to={w.link} className="truncate"><i className={`dot dot-${w.level === 'critical' ? 'down' : 'maintenance'}`} />{w.name}</Link>
-                <span className="muted truncate ins-detail">{w.detail}</span>
+                <span className="muted truncate ins-detail">{tr(w.detail)}</span>
               </li>
             ))}
           </ul>
         )}
       </Insight>
 
-      <Insight icon={Globe} title="Expiring domains & SSL" to="/domains" tone={data.expiring.length ? 'orange' : 'accent'}>
-        {data.expiring.length === 0 ? <p>Nothing expires within your alert window.</p> : (
+      <Insight icon={Globe} title={t('Expiring domains & SSL')} to="/domains" tone={data.expiring.length ? 'orange' : 'accent'}>
+        {data.expiring.length === 0 ? <p>{t('Nothing expires within your alert window.')}</p> : (
           <ul className="ins-list">
             {data.expiring.map((x) => (
               <li key={`${x.kind}-${x.id}`}>
@@ -278,27 +280,27 @@ function Insights({ data }) {
         )}
       </Insight>
 
-      <Insight icon={ListChecks} title="Incomplete tasks" to="/tasks" tone={data.incomplete.overdue ? 'orange' : 'accent'} count={data.incomplete.total}>
+      <Insight icon={ListChecks} title={t('Incomplete tasks')} to="/tasks" tone={data.incomplete.overdue ? 'orange' : 'accent'} count={data.incomplete.total}>
         <p>
-          {data.incomplete.urgent} high-priority · {data.incomplete.in_progress} in progress
-          {data.incomplete.overdue ? <> · <span className="c-orange">{data.incomplete.overdue} overdue</span></> : null}
-          {data.incomplete.undated ? <> · {data.incomplete.undated} without a due date</> : null}
+          {t('{u} high-priority · {p} in progress', { u: data.incomplete.urgent, p: data.incomplete.in_progress })}
+          {data.incomplete.overdue ? <> · <span className="c-orange">{t('{n} overdue', { n: data.incomplete.overdue })}</span></> : null}
+          {data.incomplete.undated ? <> · {t('{n} without a due date', { n: data.incomplete.undated })}</> : null}
         </p>
         {data.incomplete.top.length > 0 && (
           <ul className="ins-list compact">
-            {data.incomplete.top.map((t) => (
-              <li key={t.id}><span className="truncate">{t.title}</span><span className={`prio prio-${t.priority}`}>{t.priority}</span></li>
+            {data.incomplete.top.map((x) => (
+              <li key={x.id}><span className="truncate">{x.title}</span><span className={`prio prio-${x.priority}`}>{statusLabel(x.priority)}</span></li>
             ))}
           </ul>
         )}
       </Insight>
 
-      <Insight icon={History} title="Recent activity" to="/activity">
-        {data.recent.length === 0 ? <p>No activity yet.</p> : (
+      <Insight icon={History} title={t('Recent activity')} to="/activity">
+        {data.recent.length === 0 ? <p>{t('No activity yet.')}</p> : (
           <ul className="ins-feed">
             {data.recent.map((a) => (
               <li key={a.id}>
-                {a.link ? <Link to={a.link}>{a.description}</Link> : <span>{a.description}</span>}
+                {a.link ? <Link to={a.link}>{tr(a.description)}</Link> : <span>{tr(a.description)}</span>}
                 <em>{timeAgo(a.created_at)}</em>
               </li>
             ))}
@@ -327,18 +329,18 @@ export default function Overview() {
   if (data?.generated_at) syncServerTime(data.generated_at);
   const first = (user?.name || '').split(' ')[0];
   const hour = serverNow().getHours();
-  const greet = hour < 5 ? 'Working late' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const greet = t(hour < 5 ? 'Working late' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
 
   useEffect(() => {
-    const t = setInterval(() => reload({ silent: true }), 120000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => reload({ silent: true }), 120000);
+    return () => clearInterval(timer);
   }, [reload]);
 
   return (
     <div className="overview">
       <div className="welcome">
         <h1>{greet}, {first} <span className="wave" aria-hidden="true">👋</span></h1>
-        <p>{serverNow().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · Here’s your developer summary &amp; live insights</p>
+        <p>{fmtDate(serverNow(), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} · {t('Here’s your developer summary & live insights')}</p>
       </div>
 
       {error && !data ? <ErrorState error={error} onRetry={reload} /> : loading && !data ? <OverviewSkeleton /> : (

@@ -1,5 +1,6 @@
 import { Badge } from '../components/ui/Misc';
-import { humanize } from './format';
+import { statusLabel } from './constants';
+import { t } from '../i18n';
 
 const STATUS_TONES = {
   active: 'accent', planning: 'info', paused: 'orange', completed: 'neutral',
@@ -10,19 +11,19 @@ const STATUS_TONES = {
 };
 
 export function StatusBadge({ status, label }) {
-  return <Badge tone={STATUS_TONES[status] || 'neutral'} dot>{label || humanize(status)}</Badge>;
+  return <Badge tone={STATUS_TONES[status] || 'neutral'} dot>{label || statusLabel(status)}</Badge>;
 }
 
 export function PriorityBadge({ priority }) {
-  return <span className={`prio prio-${priority}`}>{priority}</span>;
+  return <span className={`prio prio-${priority}`}>{statusLabel(priority)}</span>;
 }
 
 export function DaysBadge({ days, warnAt = 30 }) {
   if (days === null || days === undefined) return <span className="faint">—</span>;
-  if (days < 0) return <Badge tone="danger">Expired {Math.abs(days)}d ago</Badge>;
-  if (days <= 7) return <Badge tone="danger">{days === 0 ? 'Today' : `${days}d left`}</Badge>;
-  if (days <= warnAt) return <Badge tone="orange">{days}d left</Badge>;
-  return <Badge tone="muted">{days}d left</Badge>;
+  if (days < 0) return <Badge tone="danger">{t('Expired {n}d ago', { n: Math.abs(days) })}</Badge>;
+  if (days <= 7) return <Badge tone="danger">{days === 0 ? t('Today') : t('{n}d left', { n: days })}</Badge>;
+  if (days <= warnAt) return <Badge tone="orange">{t('{n}d left', { n: days })}</Badge>;
+  return <Badge tone="muted">{t('{n}d left', { n: days })}</Badge>;
 }
 
 export const toSelect = (v) => (v === null || v === undefined ? '' : String(v));

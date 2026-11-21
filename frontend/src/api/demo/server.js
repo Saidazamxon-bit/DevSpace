@@ -1,12 +1,13 @@
 // In-browser stand-in for the PHP API, used only by the static demo build (VITE_DEMO=true).
 // Data lives in localStorage so changes survive reloads; "Reset demo" restores the sample data.
 import { at, day, iso, isoDT, seed } from './seed';
+import { lang } from '../../i18n';
 
 const KEY = 'devspace-demo-v1';
 let db;
 function load() {
   try { db = JSON.parse(localStorage.getItem(KEY)); } catch { db = null; }
-  if (!db || db.version !== 1) db = seed();
+  if (!db || db.version !== 2 || db.lang !== lang) db = seed();
 }
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* private mode */ } };
 export function resetDemo() { db = seed(); db.loggedIn = true; persist(); }
@@ -555,7 +556,7 @@ function route(method, path, body, q) {
 export async function demoRequest(method, path, body = {}, query = {}) {
   await new Promise((res) => setTimeout(res, 120)); // feel like a network call
   const [p, qs] = path.split('?');
-  const q = { ...Object.fromEntries(new URLSearchParams(qs || '')), ...Object.fromEntries(Object.entries(query || {}).map(([k, v]) => [k, v == null ? '' : String(v)])) };
+  const q = { ...Object.fromEntries(new URLSearchParams(qs || '')), ...Object.fromEntries(Object.entries(query || {}).filter(([, v]) => v !== undefined && v !== null && v !== '' && v !== 'all').map(([k, v]) => [k, String(v)])) };
   const result = route(method, p, body || {}, q);
   if (method !== 'GET') persist();
   return JSON.parse(JSON.stringify(result));

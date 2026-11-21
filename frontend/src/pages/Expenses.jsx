@@ -13,23 +13,24 @@ import { BarChart, DoughnutChart, useThemeTokens } from '../components/ui/Charts
 import { Select } from '../components/ui/Fields';
 import { Badge, EmptyState, ErrorState, MiniStat, PageHeader, SearchInput, SkeletonCards, Toolbar } from '../components/ui/Misc';
 import { CURRENCIES } from '../lib/constants';
-import { formatDate, formatMoney, serverNow, todayISO } from '../lib/format';
+import { fmtDate, formatDate, formatMoney, serverNow, todayISO } from '../lib/format';
+import { t, tr } from '../i18n';
 
 const CATEGORY_COLORS = ['#3987E5', '#D95926', '#199E70', '#C98500', '#D55181', '#0CA30C', '#9085E9', '#8A8A8A'];
 const UNCATEGORIZED = '#6B6B6B';
 const catColor = (c, i) => c.color || (c.name === 'Uncategorized' ? UNCATEGORIZED : CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
 
 const fields = (projects, categories) => [
-  { name: 'title', label: 'Title', required: true, span: 2, placeholder: 'Hetzner VPS' },
-  { name: 'amount', label: 'Amount', type: 'number', required: true, min: 0.01, step: '0.01' },
-  { name: 'currency', label: 'Currency', type: 'select', options: CURRENCIES, required: true, default: 'USD' },
-  { name: 'spent_at', label: 'Date', type: 'date', required: true, default: todayISO() },
-  { name: 'vendor', label: 'Vendor', placeholder: 'Hetzner, GitHub…' },
-  { name: 'category_id', label: 'Category', type: 'select', options: categories, placeholder: 'Uncategorized' },
-  { name: 'project_id', label: 'Project', type: 'select', options: projects, placeholder: 'None' },
-  { name: 'is_recurring', label: 'Recurring', type: 'switch', switchLabel: 'This is a recurring expense', span: 2 },
-  { name: 'recurrence', label: 'Repeats', type: 'select', options: [{ value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly' }], default: 'monthly', show: (v) => v.is_recurring, hint: 'Future entries are created automatically on the same day.' },
-  { name: 'notes', label: 'Notes', type: 'textarea', span: 2, rows: 2 },
+  { name: 'title', label: t('Title'), required: true, span: 2, placeholder: t('Hetzner VPS') },
+  { name: 'amount', label: t('Amount'), type: 'number', required: true, min: 0.01, step: '0.01' },
+  { name: 'currency', label: t('Currency'), type: 'select', options: CURRENCIES, required: true, default: 'USD' },
+  { name: 'spent_at', label: t('Date'), type: 'date', required: true, default: todayISO() },
+  { name: 'vendor', label: t('Vendor'), placeholder: t('Hetzner, GitHub…') },
+  { name: 'category_id', label: t('Category'), type: 'select', options: categories, placeholder: t('Uncategorized') },
+  { name: 'project_id', label: t('Project'), type: 'select', options: projects, placeholder: t('None') },
+  { name: 'is_recurring', label: t('Recurring'), type: 'switch', switchLabel: t('This is a recurring expense'), span: 2 },
+  { name: 'recurrence', label: t('Repeats'), type: 'select', options: [{ value: 'monthly', label: t('Monthly') }, { value: 'yearly', label: t('Yearly') }], default: 'monthly', show: (v) => v.is_recurring, hint: t('Future entries are created automatically on the same day.') },
+  { name: 'notes', label: t('Notes'), type: 'textarea', span: 2, rows: 2 },
 ];
 
 function Categories({ open, onClose, onChange }) {
@@ -37,21 +38,21 @@ function Categories({ open, onClose, onChange }) {
   const editor = useEditor();
   const { save, remove } = useCrud('/expense-categories', { entity: 'category', onChange: () => { reload({ silent: true }); onChange(); } });
   return (
-    <Modal open={open} onClose={onClose} title="Expense categories" size="sm"
-      footer={<><Button variant="ghost" onClick={onClose}>Close</Button><Button variant="primary" icon={Plus} onClick={() => editor.create()}>Add category</Button></>}>
+    <Modal open={open} onClose={onClose} title={t('Expense categories')} size="sm"
+      footer={<><Button variant="ghost" onClick={onClose}>{t('Close')}</Button><Button variant="primary" icon={Plus} onClick={() => editor.create()}>{t('Add category')}</Button></>}>
       <div className="related-list">
         {(data || []).map((c) => (
           <div key={c.id} className="related-item">
             <i className="dot" style={{ background: c.color || 'var(--faint)' }} />
             <span className="grow">{c.name}</span>
             <span className="muted small">{c.expenses_count}</span>
-            <button type="button" className="icon-btn sm" onClick={() => editor.edit(c)} aria-label={`Edit ${c.name}`}><Pencil size={13} /></button>
-            <button type="button" className="icon-btn sm" onClick={() => remove(c, c.name)} aria-label={`Delete ${c.name}`}><Trash2 size={13} /></button>
+            <button type="button" className="icon-btn sm" onClick={() => editor.edit(c)} aria-label={t('Edit {name}', { name: c.name })}><Pencil size={13} /></button>
+            <button type="button" className="icon-btn sm" onClick={() => remove(c, c.name)} aria-label={t('Delete {name}', { name: c.name })}><Trash2 size={13} /></button>
           </div>
         ))}
       </div>
-      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? 'New category' : 'Edit category'} size="sm"
-        fields={[{ name: 'name', label: 'Name', required: true, span: 2 }, { name: 'color', label: 'Color', type: 'color', colors: CATEGORY_COLORS, span: 2 }]}
+      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? t('New category') : t('Edit category')} size="sm"
+        fields={[{ name: 'name', label: t('Name'), required: true, span: 2 }, { name: 'color', label: t('Color'), type: 'color', colors: CATEGORY_COLORS, span: 2 }]}
         initial={editor.editing} onSubmit={(v) => save(v, editor.isNew ? null : editor.editing.id)} />
     </Modal>
   );
@@ -59,7 +60,7 @@ function Categories({ open, onClose, onChange }) {
 
 export default function Expenses() {
   const { settings } = useAuth();
-  const t = useThemeTokens();
+  const tk = useThemeTokens();
   const [q, setQ] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [projectId, setProjectId] = useState('');
@@ -92,62 +93,62 @@ export default function Expenses() {
   const total = data ? data.length : 0;
 
   const columns = [
-    { key: 'title', label: 'Expense', mobile: 'title', render: (e) => (
-      <div><div className="cell-title row" style={{ gap: 6 }}>{e.title}{e.is_recurring && <Repeat size={12} className="ink" aria-label="Recurring" />}</div><div className="cell-sub">{e.vendor || '—'}</div></div>
+    { key: 'title', label: t('Expense'), mobile: 'title', render: (e) => (
+      <div><div className="cell-title row" style={{ gap: 6 }}>{e.title}{e.is_recurring && <Repeat size={12} className="ink" aria-label={t('Recurring')} />}</div><div className="cell-sub">{e.vendor || '—'}</div></div>
     ) },
-    { key: 'amount', label: 'Amount', mobile: 'sub', render: (e) => <strong className="nowrap">{formatMoney(e.amount, e.currency)}</strong> },
-    { key: 'spent_at', label: 'Date', render: (e) => <span className="nowrap">{formatDate(e.spent_at)}</span> },
-    { key: 'category', label: 'Category', render: (e) => (e.category_name ? <span className="cat-chip"><i style={{ background: e.category_color || 'var(--faint)' }} />{e.category_name}</span> : <span className="faint">—</span>) },
-    { key: 'project', label: 'Project', render: (e) => e.project_name || <span className="faint">—</span> },
-    { key: 'recurring', label: 'Type', render: (e) => (e.is_recurring ? <Badge tone="accent">{e.recurrence}</Badge> : e.parent_id ? <Badge tone="muted">auto</Badge> : <Badge tone="neutral">one-time</Badge>) },
+    { key: 'amount', label: t('Amount'), mobile: 'sub', render: (e) => <strong className="nowrap">{formatMoney(e.amount, e.currency)}</strong> },
+    { key: 'spent_at', label: t('Date'), render: (e) => <span className="nowrap">{formatDate(e.spent_at)}</span> },
+    { key: 'category', label: t('Category'), render: (e) => (e.category_name ? <span className="cat-chip"><i style={{ background: e.category_color || 'var(--faint)' }} />{e.category_name}</span> : <span className="faint">—</span>) },
+    { key: 'project', label: t('Project'), render: (e) => e.project_name || <span className="faint">—</span> },
+    { key: 'recurring', label: t('Type'), render: (e) => (e.is_recurring ? <Badge tone="accent">{t(e.recurrence === 'yearly' ? 'Yearly' : 'Monthly')}</Badge> : e.parent_id ? <Badge tone="muted">{t('auto')}</Badge> : <Badge tone="neutral">{t('one-time')}</Badge>) },
   ];
 
   return (
     <>
-      <PageHeader title="Expenses" subtitle={`Track spending across UZS, USD and EUR — totals converted to ${cur} with your exchange rates.`}
+      <PageHeader title={t('Expenses')} subtitle={t('Track spending across UZS, USD and EUR — totals converted to {cur} with your exchange rates.', { cur })}
         actions={(
           <>
-            <Button icon={TagsIcon} onClick={() => setCatOpen(true)}>Categories</Button>
-            <a className="btn btn-secondary btn-md" href={downloadUrl('/expenses/export', filters)} download><Download size={17} /><span>Export CSV</span></a>
-            <Button variant="primary" icon={Plus} onClick={() => editor.create()}>Add expense</Button>
+            <Button icon={TagsIcon} onClick={() => setCatOpen(true)}>{t('Categories')}</Button>
+            <a className="btn btn-secondary btn-md" href={downloadUrl('/expenses/export', filters)} download><Download size={17} /><span>{t('Export CSV')}</span></a>
+            <Button variant="primary" icon={Plus} onClick={() => editor.create()}>{t('Add expense')}</Button>
           </>
         )} />
 
       {s && (
         <div className="mini-stats">
-          <MiniStat label="This month" value={money(s.this_month)} tone="accent" sub={delta !== null ? `${delta >= 0 ? '+' : ''}${delta}% vs last month` : 'No data last month'} />
-          <MiniStat label="Last month" value={money(s.last_month)} sub="Converted total" />
-          <MiniStat label="Last 12 months" value={money(s.year_total)} sub={`avg ${money(s.year_total / 12)}/month`} />
-          <MiniStat label="Recurring / month" value={money(s.recurring_monthly)} tone="orange" sub={`${s.recurring_count} recurring subscriptions`} />
+          <MiniStat label={t('This month')} value={money(s.this_month)} tone="accent" sub={delta !== null ? t('{d}% vs last month', { d: `${delta >= 0 ? '+' : ''}${delta}` }) : t('No data last month')} />
+          <MiniStat label={t('Last month')} value={money(s.last_month)} sub={t('Converted total')} />
+          <MiniStat label={t('Last 12 months')} value={money(s.year_total)} sub={t('avg {n}/month', { n: money(s.year_total / 12) })} />
+          <MiniStat label={t('Recurring / month')} value={money(s.recurring_monthly)} tone="orange" sub={`${s.recurring_count} recurring subscriptions`} />
         </div>
       )}
 
       {s && (
         <div className="expense-charts">
           <section className="card">
-            <div className="card-head"><h3><Wallet size={16} />Monthly spending</h3><span className="card-sub">in {cur}</span></div>
-            <BarChart labels={s.monthly.map((m) => new Date(`${m.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'short' }))}
-              titles={s.monthly.map((m) => new Date(`${m.month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))}
-              values={s.monthly.map((m) => m.total)} colors={s.monthly.map((_, i) => (i === s.monthly.length - 1 ? t.accent : t.orange))}
-              label="Spent" format={(v) => formatMoney(v, cur, { compact: true })} height={230} />
-            <div className="chart-legend"><span><i style={{ background: t.accent }} />Current month</span><span><i style={{ background: t.orange }} />Previous months</span></div>
+            <div className="card-head"><h3><Wallet size={16} />{t('Monthly spending')}</h3><span className="card-sub">in {cur}</span></div>
+            <BarChart labels={s.monthly.map((m) => fmtDate(new Date(`${m.month}-01T00:00:00`), { month: 'short' }))}
+              titles={s.monthly.map((m) => fmtDate(new Date(`${m.month}-01T00:00:00`), { month: 'long', year: 'numeric' }))}
+              values={s.monthly.map((m) => m.total)} colors={s.monthly.map((_, i) => (i === s.monthly.length - 1 ? tk.accent : tk.orange))}
+              label={t('Spent')} format={(v) => formatMoney(v, cur, { compact: true })} height={230} />
+            <div className="chart-legend"><span><i style={{ background: tk.accent }} />{t('Current month')}</span><span><i style={{ background: tk.orange }} />{t('Previous months')}</span></div>
           </section>
           <section className="card">
-            <div className="card-head"><h3>By category</h3><span className="card-sub">12 months</span></div>
-            {s.by_category.length === 0 ? <p className="muted small">No expenses yet.</p> : (
+            <div className="card-head"><h3>{t('By category')}</h3><span className="card-sub">{t('12 months')}</span></div>
+            {s.by_category.length === 0 ? <p className="muted small">{t('No expenses yet.')}</p> : (
               <div className="donut-wrap">
-                <DoughnutChart labels={s.by_category.map((c) => c.name)} values={s.by_category.map((c) => c.total)}
+                <DoughnutChart labels={s.by_category.map((c) => (c.name === 'Uncategorized' ? t('Uncategorized') : c.name))} values={s.by_category.map((c) => c.total)}
                   colors={s.by_category.map(catColor)} format={(v) => formatMoney(v, cur)} height={160} />
                 <ul className="legend-list">
                   {s.by_category.slice(0, 7).map((c, i) => (
-                    <li key={c.name}><i style={{ background: catColor(c, i) }} /><span>{c.name}</span><strong>{money(c.total)}</strong></li>
+                    <li key={c.name}><i style={{ background: catColor(c, i) }} /><span>{c.name === 'Uncategorized' ? t('Uncategorized') : c.name}</span><strong>{money(c.total)}</strong></li>
                   ))}
                 </ul>
               </div>
             )}
             {s.this_month_by_currency.length > 0 && (
               <div className="row-wrap" style={{ marginTop: 14 }}>
-                <span className="muted small">This month raw:</span>
+                <span className="muted small">{t('This month raw:')}</span>
                 {s.this_month_by_currency.map((c) => <Badge key={c.currency} tone="neutral">{formatMoney(c.total, c.currency, { compact: true })}</Badge>)}
               </div>
             )}
@@ -156,21 +157,21 @@ export default function Expenses() {
       )}
 
       <Toolbar>
-        <SearchInput value={q} onChange={setQ} placeholder="Search expenses, vendors…" />
-        <Select value={period} onChange={(e) => setPeriod(e.target.value)} options={[{ value: 'this_month', label: 'This month' }, { value: 'last_month', label: 'Last month' }, { value: 'this_year', label: 'This year' }]} placeholder="All time" aria-label="Period" />
-        <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categories} placeholder="All categories" aria-label="Category" />
-        <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} options={projects} placeholder="All projects" aria-label="Project" />
-        <Select value={currency} onChange={(e) => setCurrency(e.target.value)} options={CURRENCIES.map((c) => ({ value: c.value, label: c.value }))} placeholder="Any currency" aria-label="Currency" />
+        <SearchInput value={q} onChange={setQ} placeholder={t('Search expenses, vendors…')} />
+        <Select value={period} onChange={(e) => setPeriod(e.target.value)} options={[{ value: 'this_month', label: t('This month') }, { value: 'last_month', label: t('Last month') }, { value: 'this_year', label: t('This year') }]} placeholder={t('All time')} aria-label={t('Period')} />
+        <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categories} placeholder={t('All categories')} aria-label={t('Category')} />
+        <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} options={projects} placeholder={t('All projects')} aria-label={t('Project')} />
+        <Select value={currency} onChange={(e) => setCurrency(e.target.value)} options={CURRENCIES.map((c) => ({ value: c.value, label: c.value }))} placeholder={t('Any currency')} aria-label={t('Currency')} />
       </Toolbar>
 
       {error ? <ErrorState error={error} onRetry={reload} /> : loading && !data ? <SkeletonCards count={3} h={70} /> : total === 0 ? (
-        <EmptyState icon={Wallet} title="No expenses" text="Nothing matches these filters yet." action={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>Add expense</Button>} />
+        <EmptyState icon={Wallet} title={t('No expenses')} text={t('Nothing matches these filters yet.')} action={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>{t('Add expense')}</Button>} />
       ) : (
         <DataTable columns={columns} rows={data} onRowClick={editor.edit}
-          actions={(e) => <Menu items={[{ label: 'Edit', icon: Pencil, onClick: () => editor.edit(e) }, { label: 'Delete', icon: Trash2, danger: true, onClick: () => remove(e, e.title) }]} />} />
+          actions={(e) => <Menu items={[{ label: t('Edit'), icon: Pencil, onClick: () => editor.edit(e) }, { label: t('Delete'), icon: Trash2, danger: true, onClick: () => remove(e, e.title) }]} />} />
       )}
 
-      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? 'Add expense' : 'Edit expense'} fields={fields(projects, categories)} initial={editor.editing}
+      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? t('Add expense') : t('Edit expense')} fields={fields(projects, categories)} initial={editor.editing}
         onSubmit={(v) => save(v, editor.isNew ? null : editor.editing.id)} />
       <Categories open={catOpen} onClose={() => setCatOpen(false)} onChange={() => { setCatKey((k) => k + 1); refresh(); }} />
     </>

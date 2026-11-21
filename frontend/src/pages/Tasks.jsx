@@ -15,14 +15,15 @@ import { PriorityBadge, StatusBadge } from '../lib/ui';
 import { PRIORITIES, TASK_STATUSES } from '../lib/constants';
 import { daysUntil, formatDate } from '../lib/format';
 import { taskFields } from './taskFields';
+import { t } from '../i18n';
 
 const COLUMN_COLORS = { todo: 'var(--faint)', in_progress: 'var(--info)', review: 'var(--orange)', done: 'var(--accent)' };
 const DUE = [
-  { value: '', label: 'Any due date' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'today', label: 'Due today' },
-  { value: 'week', label: 'Next 7 days' },
-  { value: 'open', label: 'All open' },
+  { value: '', label: t('Any due date') },
+  { value: 'overdue', label: t('Overdue') },
+  { value: 'today', label: t('Due today') },
+  { value: 'week', label: t('Next 7 days') },
+  { value: 'open', label: t('All open') },
 ];
 
 function DueLabel({ task }) {
@@ -32,34 +33,34 @@ function DueLabel({ task }) {
   return (
     <span className={`task-due ${cls}`}>
       <CalendarDays size={12} />
-      {d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : formatDate(task.due_date, { month: 'short', day: 'numeric' })}
+      {d === 0 ? t('Today') : d === 1 ? t('Tomorrow') : formatDate(task.due_date, { month: 'short', day: 'numeric' })}
       {task.due_time ? ` · ${task.due_time}` : ''}
     </span>
   );
 }
 
-function TaskCard({ t, onEdit, onDelete, onToggle, onMove, onDragStart, dragging }) {
+function TaskCard({ t: tk, onEdit, onDelete, onToggle, onMove, onDragStart, dragging }) {
   return (
-    <div className={`task-card${t.status === 'done' ? ' done' : ''}${dragging ? ' dragging' : ''}`} draggable
-      onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(t.id)); e.dataTransfer.effectAllowed = 'move'; onDragStart(t.id); }}
+    <div className={`task-card${tk.status === 'done' ? ' done' : ''}${dragging ? ' dragging' : ''}`} draggable
+      onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(tk.id)); e.dataTransfer.effectAllowed = 'move'; onDragStart(tk.id); }}
       onDragEnd={() => onDragStart(null)}
-      onDoubleClick={() => onEdit(t)}>
+      onDoubleClick={() => onEdit(tk)}>
       <div className="task-card-title">
-        <button type="button" className={`check-btn${t.status === 'done' ? ' checked' : ''}`} onClick={() => onToggle(t)} aria-label={t.status === 'done' ? 'Mark as not done' : 'Mark as done'}><Check size={12} /></button>
-        <span>{t.title}</span>
+        <button type="button" className={`check-btn${tk.status === 'done' ? ' checked' : ''}`} onClick={() => onToggle(tk)} aria-label={tk.status === 'done' ? t('Mark as not done') : t('Mark as done')}><Check size={12} /></button>
+        <span>{tk.title}</span>
         <Menu items={[
-          { label: 'Edit', icon: Pencil, onClick: () => onEdit(t) },
-          { label: 'Delete', icon: Trash2, danger: true, onClick: () => onDelete(t) },
+          { label: t('Edit'), icon: Pencil, onClick: () => onEdit(tk) },
+          { label: t('Delete'), icon: Trash2, danger: true, onClick: () => onDelete(tk) },
         ]} />
       </div>
       <div className="task-card-meta">
-        <PriorityBadge priority={t.priority} />
-        {t.category && <span className="tag">{t.category}</span>}
-        <DueLabel task={t} />
+        <PriorityBadge priority={tk.priority} />
+        {tk.category && <span className="tag">{tk.category}</span>}
+        <DueLabel task={tk} />
       </div>
-      {t.project_name && <div className="task-card-meta"><span className="task-project"><i style={{ background: t.project_color || 'var(--faint)' }} />{t.project_name}</span></div>}
-      <select className="input move-select" value={t.status} onChange={(e) => onMove(t, e.target.value)} aria-label="Move to column">
-        {TASK_STATUSES.map((s) => <option key={s.value} value={s.value}>Move to: {s.label}</option>)}
+      {tk.project_name && <div className="task-card-meta"><span className="task-project"><i style={{ background: tk.project_color || 'var(--faint)' }} />{tk.project_name}</span></div>}
+      <select className="input move-select" value={tk.status} onChange={(e) => onMove(tk, e.target.value)} aria-label={t('Move to column')}>
+        {TASK_STATUSES.map((s) => <option key={s.value} value={s.value}>{t('Move to: {name}', { name: s.label })}</option>)}
       </select>
     </div>
   );
@@ -72,7 +73,7 @@ function Board({ tasks, setTasks, onEdit, onDelete, onToggle, onNew, onChanged }
 
   const columns = useMemo(() => {
     const c = Object.fromEntries(TASK_STATUSES.map((s) => [s.value, []]));
-    tasks.forEach((t) => c[t.status]?.push(t));
+    tasks.forEach((tk) => c[tk.status]?.push(tk));
     Object.values(c).forEach((list) => list.sort((a, b) => a.position - b.position || b.id - a.id));
     return c;
   }, [tasks]);
@@ -82,20 +83,20 @@ function Board({ tasks, setTasks, onEdit, onDelete, onToggle, onNew, onChanged }
   };
 
   const moveTo = (taskId, status, beforeId = null) => {
-    const task = tasks.find((t) => t.id === taskId);
+    const task = tasks.find((tk) => tk.id === taskId);
     if (!task) return;
-    const target = columns[status].filter((t) => t.id !== taskId);
-    const idx = beforeId ? target.findIndex((t) => t.id === beforeId) : target.length;
+    const target = columns[status].filter((tk) => tk.id !== taskId);
+    const idx = beforeId ? target.findIndex((tk) => tk.id === beforeId) : target.length;
     target.splice(idx < 0 ? target.length : idx, 0, { ...task, status });
-    const items = target.map((t, i) => ({ id: t.id, status, position: i + 1 }));
-    setTasks((all) => all.map((t) => {
-      const it = items.find((x) => x.id === t.id);
-      if (!it) return t;
-      const becameDone = status === 'done' && t.status !== 'done';
-      return { ...t, status, position: it.position, completed_at: becameDone ? new Date().toISOString() : status === 'done' ? t.completed_at : null };
+    const items = target.map((tk, i) => ({ id: tk.id, status, position: i + 1 }));
+    setTasks((all) => all.map((tk) => {
+      const it = items.find((x) => x.id === tk.id);
+      if (!it) return tk;
+      const becameDone = status === 'done' && tk.status !== 'done';
+      return { ...tk, status, position: it.position, completed_at: becameDone ? new Date().toISOString() : status === 'done' ? tk.completed_at : null };
     }));
     persist(items);
-    if (status !== task.status) toast(`Moved to ${TASK_STATUSES.find((s) => s.value === status).label}`);
+    if (status !== task.status) toast(t('Moved to {name}', { name: TASK_STATUSES.find((s) => s.value === status).label }));
   };
 
   return (
@@ -113,14 +114,14 @@ function Board({ tasks, setTasks, onEdit, onDelete, onToggle, onNew, onChanged }
           <div className="kanban-col-head">
             <i className="kanban-dot" style={{ background: COLUMN_COLORS[col.value] }} />
             {col.label}<em>{columns[col.value].length}</em>
-            <button type="button" className="icon-btn" onClick={() => onNew(col.value)} aria-label={`Add task to ${col.label}`}><Plus size={16} /></button>
+            <button type="button" className="icon-btn" onClick={() => onNew(col.value)} aria-label={t('Add task to {name}', { name: col.label })}><Plus size={16} /></button>
           </div>
-          {columns[col.value].map((t) => (
-            <div key={t.id} data-task={t.id}>
-              <TaskCard t={t} dragging={dragId === t.id} onDragStart={setDragId} onEdit={onEdit} onDelete={onDelete} onToggle={onToggle} onMove={(task, s) => moveTo(task.id, s)} />
+          {columns[col.value].map((tk) => (
+            <div key={tk.id} data-task={tk.id}>
+              <TaskCard t={tk} dragging={dragId === tk.id} onDragStart={setDragId} onEdit={onEdit} onDelete={onDelete} onToggle={onToggle} onMove={(task, s) => moveTo(task.id, s)} />
             </div>
           ))}
-          {columns[col.value].length === 0 && <p className="muted small" style={{ textAlign: 'center', padding: '18px 0' }}>Drop tasks here</p>}
+          {columns[col.value].length === 0 && <p className="muted small" style={{ textAlign: 'center', padding: '18px 0' }}>{t('Drop tasks here')}</p>}
         </div>
       ))}
     </div>
@@ -155,63 +156,63 @@ export default function Tasks() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
-  const toggle = async (t) => {
-    const status = t.status === 'done' ? 'todo' : 'done';
-    setData((all) => all.map((x) => (x.id === t.id ? { ...x, status } : x)));
-    try { await patch(`/tasks/${t.id}`, { status }); if (status === 'done') toast('Task completed 🎉'); refresh(); } catch (e) { toast(e.message, 'error'); reload(); }
+  const toggle = async (tk) => {
+    const status = tk.status === 'done' ? 'todo' : 'done';
+    setData((all) => all.map((x) => (x.id === tk.id ? { ...x, status } : x)));
+    try { await patch(`/tasks/${tk.id}`, { status }); if (status === 'done') toast(t('Task completed 🎉')); refresh(); } catch (e) { toast(e.message, 'error'); reload(); }
   };
 
   const s = stats.data;
   const categories = s?.categories || [];
   const columns = [
-    { key: 'title', label: 'Task', mobile: 'title', render: (t) => (
+    { key: 'title', label: t('Task'), mobile: 'title', render: (tk) => (
       <div className="row" style={{ alignItems: 'flex-start' }}>
-        <button type="button" className={`check-btn${t.status === 'done' ? ' checked' : ''}`} onClick={(e) => { e.stopPropagation(); toggle(t); }} aria-label="Toggle done"><Check size={12} /></button>
+        <button type="button" className={`check-btn${tk.status === 'done' ? ' checked' : ''}`} onClick={(e) => { e.stopPropagation(); toggle(tk); }} aria-label={t('Toggle done')}><Check size={12} /></button>
         <div style={{ minWidth: 0 }}>
-          <div className="cell-title" style={{ textDecoration: t.status === 'done' ? 'line-through' : 'none', color: t.status === 'done' ? 'var(--muted)' : undefined }}>{t.title}</div>
-          {t.category && <div className="cell-sub">{t.category}</div>}
+          <div className="cell-title" style={{ textDecoration: tk.status === 'done' ? 'line-through' : 'none', color: tk.status === 'done' ? 'var(--muted)' : undefined }}>{tk.title}</div>
+          {tk.category && <div className="cell-sub">{tk.category}</div>}
         </div>
       </div>
     ) },
-    { key: 'project', label: 'Project', render: (t) => (t.project_name ? <span className="task-project"><i className="dot" style={{ background: t.project_color || 'var(--faint)' }} />{t.project_name}</span> : <span className="faint">—</span>) },
-    { key: 'priority', label: 'Priority', render: (t) => <PriorityBadge priority={t.priority} /> },
-    { key: 'status', label: 'Status', render: (t) => <StatusBadge status={t.status} label={TASK_STATUSES.find((x) => x.value === t.status)?.label} /> },
-    { key: 'due', label: 'Due', render: (t) => (t.due_date ? <DueLabel task={t} /> : <span className="faint">—</span>) },
+    { key: 'project', label: t('Project'), render: (tk) => (tk.project_name ? <span className="task-project"><i className="dot" style={{ background: tk.project_color || 'var(--faint)' }} />{tk.project_name}</span> : <span className="faint">—</span>) },
+    { key: 'priority', label: t('Priority'), render: (tk) => <PriorityBadge priority={tk.priority} /> },
+    { key: 'status', label: t('Status'), render: (tk) => <StatusBadge status={tk.status} label={TASK_STATUSES.find((x) => x.value === tk.status)?.label} /> },
+    { key: 'due', label: t('Due'), render: (tk) => (tk.due_date ? <DueLabel task={tk} /> : <span className="faint">—</span>) },
   ];
 
   return (
     <>
-      <PageHeader title="Tasks" subtitle="Plan, prioritise and ship. Drag cards between columns to update status."
-        actions={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>New task</Button>} />
+      <PageHeader title={t('Tasks')} subtitle={t('Plan, prioritise and ship. Drag cards between columns to update status.')}
+        actions={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>{t('New task')}</Button>} />
 
       {s && (
         <div className="mini-stats">
-          <MiniStat label="Open" value={s.by_status.todo + s.by_status.in_progress + s.by_status.review} sub={`${s.by_status.in_progress} in progress · ${s.by_status.review} in review`} />
-          <MiniStat label="Overdue" value={s.overdue} tone={s.overdue ? 'danger' : undefined} sub="Past their due date" />
-          <MiniStat label="Completed this week" value={s.completed_week} tone="accent" sub="Last 7 days" />
-          <MiniStat label="Completed this month" value={s.completed_month} sub={`${s.by_status.done} done all-time`} />
+          <MiniStat label={t('Open')} value={s.by_status.todo + s.by_status.in_progress + s.by_status.review} sub={t('{p} in progress · {r} in review', { p: s.by_status.in_progress, r: s.by_status.review })} />
+          <MiniStat label={t('Overdue')} value={s.overdue} tone={s.overdue ? 'danger' : undefined} sub={t('Past their due date')} />
+          <MiniStat label={t('Completed this week')} value={s.completed_week} tone="accent" sub={t('Last 7 days')} />
+          <MiniStat label={t('Completed this month')} value={s.completed_month} sub={t('{n} done all-time', { n: s.by_status.done })} />
         </div>
       )}
 
       <Toolbar>
-        <Segmented options={[{ value: 'board', label: 'Board', icon: Columns3 }, { value: 'list', label: 'List', icon: List }]} value={view} onChange={setView} />
-        <SearchInput value={q} onChange={setQ} placeholder="Search tasks…" />
-        <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} options={projectOptions} placeholder="All projects" aria-label="Filter by project" />
-        <Select value={priority} onChange={(e) => setPriority(e.target.value)} options={PRIORITIES} placeholder="Any priority" aria-label="Filter by priority" />
-        {categories.length > 0 && <Select value={category} onChange={(e) => setCategory(e.target.value)} options={categories.map((c) => ({ value: c, label: c }))} placeholder="All categories" aria-label="Filter by category" />}
-        <Select value={due} onChange={(e) => setDue(e.target.value)} options={DUE.slice(1)} placeholder="Any due date" aria-label="Filter by due date" />
+        <Segmented options={[{ value: 'board', label: t('Board'), icon: Columns3 }, { value: 'list', label: t('List'), icon: List }]} value={view} onChange={setView} />
+        <SearchInput value={q} onChange={setQ} placeholder={t('Search tasks…')} />
+        <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} options={projectOptions} placeholder={t('All projects')} aria-label={t('Filter by project')} />
+        <Select value={priority} onChange={(e) => setPriority(e.target.value)} options={PRIORITIES} placeholder={t('Any priority')} aria-label={t('Filter by priority')} />
+        {categories.length > 0 && <Select value={category} onChange={(e) => setCategory(e.target.value)} options={categories.map((c) => ({ value: c, label: c }))} placeholder={t('All categories')} aria-label={t('Filter by category')} />}
+        <Select value={due} onChange={(e) => setDue(e.target.value)} options={DUE.slice(1)} placeholder={t('Any due date')} aria-label={t('Filter by due date')} />
       </Toolbar>
 
       {error ? <ErrorState error={error} onRetry={reload} /> : loading && !data ? <SkeletonCards count={4} h={320} /> : data.length === 0 && view === 'list' ? (
-        <EmptyState icon={ListChecks} title="No tasks found" text={q || projectId || priority || due ? 'Try clearing filters.' : 'Create your first task.'} action={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>New task</Button>} />
+        <EmptyState icon={ListChecks} title={t('No tasks found')} text={q || projectId || priority || due ? t('Try clearing filters.') : t('Create your first task.')} action={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>{t('New task')}</Button>} />
       ) : view === 'board' ? (
-        <Board tasks={data} setTasks={setData} onChanged={() => stats.reload({ silent: true })} onEdit={editor.edit} onDelete={(t) => remove(t, t.title)} onToggle={toggle} onNew={(status) => editor.create({ status, project_id: projectId || undefined })} />
+        <Board tasks={data} setTasks={setData} onChanged={() => stats.reload({ silent: true })} onEdit={editor.edit} onDelete={(tk) => remove(tk, tk.title)} onToggle={toggle} onNew={(status) => editor.create({ status, project_id: projectId || undefined })} />
       ) : (
         <DataTable columns={columns} rows={data} onRowClick={editor.edit}
-          actions={(t) => <Menu items={[{ label: 'Edit', icon: Pencil, onClick: () => editor.edit(t) }, { label: 'Delete', icon: Trash2, danger: true, onClick: () => remove(t, t.title) }]} />} />
+          actions={(tk) => <Menu items={[{ label: t('Edit'), icon: Pencil, onClick: () => editor.edit(tk) }, { label: t('Delete'), icon: Trash2, danger: true, onClick: () => remove(tk, tk.title) }]} />} />
       )}
 
-      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? 'New task' : 'Edit task'}
+      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? t('New task') : t('Edit task')}
         fields={taskFields(projectOptions, categories)} initial={editor.editing} onSubmit={(v) => save(v, editor.isNew ? null : editor.editing.id)} />
     </>
   );

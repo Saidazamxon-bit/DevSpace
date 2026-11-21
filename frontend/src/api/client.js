@@ -1,4 +1,5 @@
 // Thin fetch wrapper: same-origin session cookie + CSRF header on every mutating request.
+import { tr } from '../i18n';
 
 const meta = document.querySelector('meta[name="app-base"]');
 export const BASE = meta ? meta.getAttribute('content') : '';
@@ -13,9 +14,9 @@ export const setCsrf = (t) => { csrfToken = t; };
 
 export class ApiError extends Error {
   constructor(status, message, fields = {}) {
-    super(message);
+    super(tr(message));
     this.status = status;
-    this.fields = fields;
+    this.fields = Object.fromEntries(Object.entries(fields || {}).map(([k, v]) => [k, tr(v)]));
   }
 }
 

@@ -3,6 +3,7 @@ import Modal from './Modal';
 import Button from './Button';
 import { ChipSelect, ColorPicker, Field, Input, Select, Switch, Textarea } from './Fields';
 import { useUI } from '../../context/UIContext';
+import { t } from '../../i18n';
 
 /**
  * Generic create/edit form driven by a field schema:
@@ -15,18 +16,18 @@ function clientValidate(fields, values) {
     if (f.show && !f.show(values)) continue;
     const v = values[f.name];
     const empty = v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length);
-    if (f.required && empty) { errors[f.name] = `${f.label} is required.`; continue; }
+    if (f.required && empty) { errors[f.name] = t('{label} is required.', { label: f.label }); continue; }
     if (empty) continue;
-    if (f.type === 'url' && !/^https?:\/\/[^\s.]+\.[^\s]+/i.test(v) && !/^https?:\/\/(localhost|\d+\.\d+\.\d+\.\d+)/i.test(v)) errors[f.name] = 'Enter a valid URL starting with http:// or https://';
-    if (f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) errors[f.name] = 'Enter a valid email address.';
-    if (f.type === 'number' && (Number.isNaN(Number(v)) || (f.min !== undefined && Number(v) < f.min))) errors[f.name] = f.min !== undefined ? `Must be a number ≥ ${f.min}.` : 'Must be a number.';
-    if (f.maxLength && String(v).length > f.maxLength) errors[f.name] = `Maximum ${f.maxLength} characters.`;
+    if (f.type === 'url' && !/^https?:\/\/[^\s.]+\.[^\s]+/i.test(v) && !/^https?:\/\/(localhost|\d+\.\d+\.\d+\.\d+)/i.test(v)) errors[f.name] = t('Enter a valid URL starting with http:// or https://');
+    if (f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) errors[f.name] = t('Enter a valid email address.');
+    if (f.type === 'number' && (Number.isNaN(Number(v)) || (f.min !== undefined && Number(v) < f.min))) errors[f.name] = f.min !== undefined ? t('Must be a number ≥ {min}.', { min: f.min }) : t('Must be a number.');
+    if (f.maxLength && String(v).length > f.maxLength) errors[f.name] = t('Maximum {n} characters.', { n: f.maxLength });
     if (f.validate) { const msg = f.validate(v, values); if (msg) errors[f.name] = msg; }
   }
   return errors;
 }
 
-export default function FormModal({ open, onClose, title, subtitle, fields, initial, onSubmit, submitLabel = 'Save', size = 'md' }) {
+export default function FormModal({ open, onClose, title, subtitle, fields, initial, onSubmit, submitLabel = t('Save'), size = 'md' }) {
   const [values, setValues] = useState({});
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -92,7 +93,7 @@ export default function FormModal({ open, onClose, title, subtitle, fields, init
     <Modal open={open} onClose={onClose} title={title} subtitle={subtitle} size={size}
       footer={(
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose}>{t('Cancel')}</Button>
           <Button variant="primary" type="submit" form="resource-form" loading={saving}>{submitLabel}</Button>
         </>
       )}>

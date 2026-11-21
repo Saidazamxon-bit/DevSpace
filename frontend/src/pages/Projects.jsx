@@ -14,20 +14,21 @@ import { PriorityBadge, StatusBadge } from '../lib/ui';
 import { PRIORITIES } from '../lib/constants';
 import { daysUntil, formatDate, relativeDays, splitList } from '../lib/format';
 import { projectFields } from './projectFields';
+import { t } from '../i18n';
 
 const FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'planning', label: 'Planning' },
-  { value: 'paused', label: 'Paused' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'archived', label: 'Archived' },
+  { value: 'all', label: t('All') },
+  { value: 'active', label: t('Active') },
+  { value: 'planning', label: t('Planning') },
+  { value: 'paused', label: t('Paused') },
+  { value: 'completed', label: t('Completed') },
+  { value: 'archived', label: t('Archived') },
 ];
 const SORTS = [
-  { value: 'updated', label: 'Recently updated' },
-  { value: 'deadline', label: 'Deadline' },
-  { value: 'priority', label: 'Priority' },
-  { value: 'name', label: 'Name' },
+  { value: 'updated', label: t('Recently updated') },
+  { value: 'deadline', label: t('Deadline') },
+  { value: 'priority', label: t('Priority') },
+  { value: 'name', label: t('Name') },
 ];
 
 export function ProjectCard({ p, onEdit, onArchive, onDelete }) {
@@ -43,26 +44,26 @@ export function ProjectCard({ p, onEdit, onArchive, onDelete }) {
         </div>
         <div onClick={(e) => e.stopPropagation()}>
           <Menu items={[
-            { label: 'Edit', icon: Pencil, onClick: () => onEdit(p) },
-            { label: p.archived ? 'Restore' : 'Archive', icon: p.archived ? ArchiveRestore : Archive, onClick: () => onArchive(p) },
-            { label: 'Delete', icon: Trash2, danger: true, onClick: () => onDelete(p) },
+            { label: t('Edit'), icon: Pencil, onClick: () => onEdit(p) },
+            { label: p.archived ? t('Restore') : t('Archive'), icon: p.archived ? ArchiveRestore : Archive, onClick: () => onArchive(p) },
+            { label: t('Delete'), icon: Trash2, danger: true, onClick: () => onDelete(p) },
           ]} />
         </div>
       </div>
-      <p className="desc">{p.description || 'No description yet.'}</p>
+      <p className="desc">{p.description || t('No description yet.')}</p>
       <Tags items={splitList(p.technologies)} max={4} />
       <div>
-        <div className="project-meta" style={{ marginBottom: 6 }}><span>{p.tasks_done}/{p.tasks_total} tasks</span><span>{p.progress}%</span></div>
+        <div className="project-meta" style={{ marginBottom: 6 }}><span>{t('{d}/{n} tasks', { d: p.tasks_done, n: p.tasks_total })}</span><span>{p.progress}%</span></div>
         <Progress value={p.progress} />
       </div>
       <div className="project-meta">
         <span className="row" style={{ gap: 6 }}>
           <CalendarDays size={13} />
-          {p.deadline ? <span className={days !== null && days < 0 && p.status !== 'completed' ? 'c-danger' : days !== null && days <= 7 ? 'c-orange' : ''}>{formatDate(p.deadline)} · {relativeDays(days)}</span> : 'No deadline'}
+          {p.deadline ? <span className={days !== null && days < 0 && p.status !== 'completed' ? 'c-danger' : days !== null && days <= 7 ? 'c-orange' : ''}>{formatDate(p.deadline)} · {relativeDays(days)}</span> : t('No deadline')}
         </span>
         <span className="project-links" onClick={(e) => e.stopPropagation()}>
-          {p.url && <a className="icon-btn sm" href={p.url} target="_blank" rel="noopener noreferrer" aria-label="Open live site"><ExternalLink size={14} /></a>}
-          {p.repo_url && <a className="icon-btn sm" href={p.repo_url} target="_blank" rel="noopener noreferrer" aria-label="Open repository"><Github size={14} /></a>}
+          {p.url && <a className="icon-btn sm" href={p.url} target="_blank" rel="noopener noreferrer" aria-label={t('Open live site')}><ExternalLink size={14} /></a>}
+          {p.repo_url && <a className="icon-btn sm" href={p.repo_url} target="_blank" rel="noopener noreferrer" aria-label={t('Open repository')}><Github size={14} /></a>}
         </span>
       </div>
     </article>
@@ -74,10 +75,10 @@ export function useProjectActions(reload) {
   const crud = useCrud('/projects', { entity: 'project', onChange: reload });
   const archive = async (p) => {
     if (!p.archived) {
-      const ok = await confirm({ title: 'Archive project?', message: `“${p.name}” will be hidden from your active lists. You can restore it any time.`, confirmLabel: 'Archive' });
+      const ok = await confirm({ title: t('Archive project?'), message: t('“{name}” will be hidden from your active lists. You can restore it any time.', { name: p.name }), confirmLabel: t('Archive') });
       if (!ok) return;
     }
-    try { await post(`/projects/${p.id}/archive`); toast(p.archived ? 'Project restored' : 'Project archived'); reload(); } catch (e) { toast(e.message, 'error'); }
+    try { await post(`/projects/${p.id}/archive`); toast(p.archived ? t('Project restored') : t('Project archived')); reload(); } catch (e) { toast(e.message, 'error'); }
   };
   return { ...crud, archive };
 }
@@ -97,26 +98,26 @@ export default function Projects() {
 
   return (
     <>
-      <PageHeader title="Projects" subtitle="Everything you’re building — status, deadlines, stack and progress."
-        actions={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>New project</Button>} />
+      <PageHeader title={t('Projects')} subtitle={t('Everything you’re building — status, deadlines, stack and progress.')}
+        actions={<Button variant="primary" icon={Plus} onClick={() => editor.create()}>{t('New project')}</Button>} />
       <Toolbar>
         <Segmented options={FILTERS} value={filter} onChange={setFilter} />
-        <SearchInput value={q} onChange={setQ} placeholder="Search projects or tech…" />
-        <Select value={priority} onChange={(e) => setPriority(e.target.value)} options={PRIORITIES} placeholder="Any priority" aria-label="Filter by priority" />
-        <Select value={sort} onChange={(e) => setSort(e.target.value)} options={SORTS} aria-label="Sort projects" />
+        <SearchInput value={q} onChange={setQ} placeholder={t('Search projects or tech…')} />
+        <Select value={priority} onChange={(e) => setPriority(e.target.value)} options={PRIORITIES} placeholder={t('Any priority')} aria-label={t('Filter by priority')} />
+        <Select value={sort} onChange={(e) => setSort(e.target.value)} options={SORTS} aria-label={t('Sort projects')} />
       </Toolbar>
 
       {error ? <ErrorState error={error} onRetry={reload} /> : loading && !data ? <SkeletonCards count={6} h={250} /> : counts === 0 ? (
-        <EmptyState icon={FolderKanban} title={filter === 'archived' ? 'No archived projects' : 'No projects found'}
-          text={q || priority || filter !== 'all' ? 'Try adjusting your filters.' : 'Create your first project to start tracking tasks, domains, servers and expenses.'}
-          action={!q && filter === 'all' && <Button variant="primary" icon={Plus} onClick={() => editor.create()}>New project</Button>} />
+        <EmptyState icon={FolderKanban} title={filter === 'archived' ? t('No archived projects') : t('No projects found')}
+          text={q || priority || filter !== 'all' ? t('Try adjusting your filters.') : t('Create your first project to start tracking tasks, domains, servers and expenses.')}
+          action={!q && filter === 'all' && <Button variant="primary" icon={Plus} onClick={() => editor.create()}>{t('New project')}</Button>} />
       ) : (
         <div className="project-grid">
           {data.map((p) => <ProjectCard key={p.id} p={p} onEdit={editor.edit} onArchive={archive} onDelete={(x) => remove(x, x.name)} />)}
         </div>
       )}
 
-      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? 'New project' : 'Edit project'}
+      <FormModal open={editor.open} onClose={editor.close} title={editor.isNew ? t('New project') : t('Edit project')}
         fields={projectFields} initial={editor.editing} onSubmit={(v) => save(v, editor.isNew ? null : editor.editing.id)} size="lg" />
     </>
   );

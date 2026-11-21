@@ -1,4 +1,5 @@
 import { Check, ChevronDown } from 'lucide-react';
+import { t } from '../../i18n';
 
 export function Field({ label, error, hint, children, span, required, htmlFor }) {
   return (
@@ -44,7 +45,7 @@ export function ColorPicker({ value, onChange, colors }) {
   return (
     <div className="swatches">
       {colors.map((c) => (
-        <button type="button" key={c} className={`swatch${value === c ? ' active' : ''}`} style={{ background: c }} onClick={() => onChange(value === c ? '' : c)} aria-label={`Color ${c}`}>
+        <button type="button" key={c} className={`swatch${value === c ? ' active' : ''}`} style={{ background: c }} onClick={() => onChange(value === c ? '' : c)} aria-label={t('Color {c}', { c })}>
           {value === c && <Check size={14} />}
         </button>
       ))}
@@ -54,7 +55,7 @@ export function ColorPicker({ value, onChange, colors }) {
 
 export function ChipSelect({ options, value = [], onChange }) {
   const toggle = (v) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
-  if (!options.length) return <p className="field-hint">Nothing to select yet.</p>;
+  if (!options.length) return <p className="field-hint">{t('Nothing to select yet.')}</p>;
   return (
     <div className="chip-select">
       {options.map((o) => (

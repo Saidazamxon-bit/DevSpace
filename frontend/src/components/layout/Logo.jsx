@@ -1,3 +1,5 @@
+import { t } from '../../i18n';
+
 export function LogoMark({ size = 30 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="logo-mark">
@@ -15,7 +17,7 @@ export default function Logo({ collapsed }) {
       {!collapsed && (
         <div className="logo-text">
           <strong>DEVSPACE</strong>
-          <span>Developer Command Center</span>
+          <span>{t('Developer Command Center')}</span>
         </div>
       )}
     </div>
