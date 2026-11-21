@@ -39,23 +39,45 @@ export function PwaManager() {
 
   useEffect(() => {
     usePwa.getState().set({ needRefresh });
+    if (!needRefresh) return;
+    // Tanishtiruv sahifasida yo‘qotiladigan narsa yo‘q — darhol yangi versiyaga o‘tamiz
+    if (!inAppNow()) {
+      void updateServiceWorker(true);
+      return;
+    }
+    // Ilova ichida: hech qanday oyna (forma) ochiq bo‘lmasa yoki foydalanuvchi ilovadan
+    // chiqqanda (fonga o‘tganda) jimgina yangilanadi — keyingi ochilishda yangi versiya
+    const applyIfIdle = () => {
+      if (document.visibilityState === 'hidden' && !document.querySelector('[role=dialog]')) void updateServiceWorker(true);
+    };
+    document.addEventListener('visibilitychange', applyIfIdle);
     if (needRefresh) {
       toast.info('Yangi versiya mavjud', 'Ilovani yangilash uchun bosing. Ma’lumotlaringiz saqlanib qoladi.', {
         label: 'Yangilash',
         onClick: () => void updateServiceWorker(true),
       });
     }
+    return () => document.removeEventListener('visibilitychange', applyIfIdle);
   }, [needRefresh, updateServiceWorker]);
 
   useEffect(() => {
     usePwa.getState().set({ offlineReady });
     // Tanishtiruv sahifasida (hali ilova ochilmagan) bu xabar ortiqcha
-    const inApp = isStandalone() || (() => { try { return sessionStorage.getItem('pf-browser') === '1'; } catch { return false; } })();
-    if (offlineReady && inApp) {
+    if (offlineReady && inAppNow()) {
       toast.success('Ilova offline ishlashga tayyor', 'Endi internet bo‘lmasa ham foydalanishingiz mumkin.');
       setOfflineReady(false);
     }
   }, [offlineReady, setOfflineReady]);
 
   return null;
+}
+
+/** Ilova ochilganmi (o‘rnatilgan yoki “Brauzerda davom etish” bosilgan) — tanishtiruv sahifasida emas */
+function inAppNow() {
+  if (isStandalone()) return true;
+  try {
+    return sessionStorage.getItem('pf-browser') === '1';
+  } catch {
+    return false;
+  }
 }
