@@ -6,7 +6,7 @@
 import { db } from '@/database/db';
 import type { Account, AccountKind, Budget, Category, DistributionConfig, Minor, PaymentMethod, Recurring, RecurringFreq, SecurityConfig, SplitRule, Transaction, Transfer, TxType } from '@/types';
 import { cleanText, uuid } from '@/utils/misc';
-import { isValidISODate } from '@/utils/date';
+import { isValidISODate, todayISO } from '@/utils/date';
 import { MAX_MINOR } from '@/utils/money';
 
 export class ValidationError extends Error {}
@@ -551,6 +551,38 @@ export async function distributeIncome(tx: Transaction): Promise<number> {
   }));
   await db.transfers.bulkAdd(rows);
   return rows.length;
+}
+
+/**
+ * Mavjud pulni qo‘lda taqsimlash: tanlangan hisobdan qoidalar bo‘yicha boshqa hisoblarga o‘tkazmalar.
+ * Faqat `ruleIds` dagi qoidalar ishlatiladi. Yaratilgan o‘tkazmalar qaytadi (bekor qilish uchun).
+ */
+export async function distributeExisting(input: { fromId: string; amount: Minor; ruleIds: string[]; date?: string }): Promise<Transfer[]> {
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0 || input.amount > MAX_MINOR) throw new ValidationError('Summa noto‘g‘ri');
+  return db.transaction('rw', [db.accounts, db.transfers, db.meta], async () => {
+    const from = await db.accounts.get(input.fromId);
+    if (!from) throw new ValidationError('Hisob topilmadi');
+    const cfg = await getDistribution();
+    const accounts = new Set((await db.accounts.toArray()).map((a) => a.id));
+    const chosen = new Set(input.ruleIds);
+    const rules = cfg.rules.filter((r) => chosen.has(r.id) && accounts.has(r.accountId));
+    const parts = computeSplit(input.amount, rules, from.id);
+    if (!parts.length) throw new ValidationError('Bo‘linadigan ulush yo‘q — kamida bitta qoidani tanlang');
+    const now = Date.now();
+    const date = input.date && isValidISODate(input.date) ? input.date : todayISO();
+    const rows: Transfer[] = parts.map((p) => ({
+      id: uuid(),
+      fromId: from.id,
+      toId: p.rule.accountId,
+      amount: p.amount,
+      date,
+      note: cleanText(`Taqsimot · ${p.rule.name} ${p.rule.percent}%`, NOTE_MAX),
+      createdAt: now,
+      updatedAt: now,
+    }));
+    await db.transfers.bulkAdd(rows);
+    return rows;
+  });
 }
 
 /** Daromad qo‘shib, darhol taqsimlash (atomar) */

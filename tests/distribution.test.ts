@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../src/database/db';
 import {
-  addIncomeWithSplit, applyDistributionTemplate, computeSplit, deleteTransaction, getDistribution, restoreTransaction, saveDistribution,
+  addIncomeWithSplit, applyDistributionTemplate, computeSplit, distributeExisting, updateAccount, deleteTransaction, getDistribution, restoreTransaction, saveDistribution,
   updateTransaction, wipeAllData,
 } from '../src/services/finance';
 import { applyBackup, buildBackup, validateBackup } from '../src/services/backup';
@@ -20,6 +20,22 @@ const balancesByName = async () => {
 };
 
 describe('daromadni taqsimlash', () => {
+  it('mavjud pulni qo‘lda bo‘lish: tanlangan qismlar, qolgani manbada', async () => {
+    await applyDistributionTemplate();
+    const cash = (await db.accounts.get('acc-cash'))!;
+    await updateAccount('acc-cash', { name: cash.name, kind: cash.kind, icon: cash.icon, color: cash.color, currentBalance: 1_000_000_00 });
+    const cfg = await getDistribution();
+    // Faqat “Uyga” (20%) va “Qayta investitsiya” (40%) tanlandi, 500 000 so‘m
+    const rows = await distributeExisting({ fromId: 'acc-cash', amount: 500_000_00, ruleIds: [cfg.rules[0].id, cfg.rules[1].id] });
+    expect(rows).toHaveLength(2);
+    const b = await balancesByName();
+    expect(b['Uy uchun']).toBe(100_000_00);
+    expect(b['Investitsiya']).toBe(200_000_00);
+    expect(b['Naqd']).toBe(700_000_00);
+    expect(b['Ehson']).toBe(0);
+    await expect(distributeExisting({ fromId: 'acc-cash', amount: 100_00, ruleIds: [] })).rejects.toThrow();
+  });
+
   it('100 000 so‘m: 20% uyga, 40% investitsiya, 10% o‘zimga, 5% ehson, 5% chiqim', async () => {
     await applyDistributionTemplate();
     const cfg = await getDistribution();

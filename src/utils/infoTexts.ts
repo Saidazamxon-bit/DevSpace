@@ -42,6 +42,7 @@ export const INFO = {
       'Har bir daromad tushishi bilan uni oldindan belgilangan foizlarda bo‘lib qo‘yish usuli. Masalan: 20% uyga, 40% qayta investitsiyaga, 10% o‘zingizga, 5% ehsonga, 5% chiqimga.',
       'Har bir ulush alohida hisobga (konvertga) boradi. Daromad qo‘shganingizda ilova uni avtomatik ravishda shu hisoblarga o‘tkazadi — qo‘lda hisoblash shart emas.',
       'Foizlar yig‘indisi 100% dan kam bo‘lsa, qolgani daromad tushgan hisobda qoladi.',
+      'Hisobingizda allaqachon turgan pulni ham bo‘lish mumkin: “Mavjud pulni bo‘lish” tugmasini bosing, hisob va summani tanlang — ilova ulushlarni hisoblab, bir bosishda o‘tkazadi. Xato bo‘lsa, “Bekor qilish” bilan qaytarasiz.',
       'Daromadni tahrirlasangiz yoki o‘chirsangiz, taqsimot ham avtomatik yangilanadi. Kerak bo‘lsa, daromad qo‘shayotganda taqsimlashni shu safar uchun o‘chirib qo‘yish mumkin.',
     ],
   },

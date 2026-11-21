@@ -341,6 +341,17 @@ await m.locator('[data-account]').first().waitFor();
 const accText = norm(await m.locator('main').innerText());
 check(accText.includes('Investitsiya') && accText.includes('40 000 so‘m') && accText.includes('20 000 so‘m'), 'Daromad avtomatik hisoblarga bo‘lindi (Investitsiya 40 000, Uy 20 000)');
 
+// Mavjud pulni qo‘lda bo‘lish
+await m.goto(BASE + '#/distribution');
+await m.getByTestId('dist-manual').click();
+await m.getByRole('dialog', { name: 'Mavjud pulni bo‘lish' }).waitFor();
+await m.waitForTimeout(400);
+check((await m.getByRole('dialog').getByRole('checkbox', { checked: true }).count()) === 5, 'Qo‘lda bo‘lish: 5 qism tanlangan, summa — hisobdagi qoldiq');
+await m.screenshot({ path: `${OUT}/mobile-manual-split.png` });
+await m.getByTestId('manual-submit').click();
+await m.getByText(/ta hisobga bo‘lindi/).waitFor();
+check(true, 'Mavjud pul bir bosishda hisoblarga bo‘lindi');
+
 for (const [path, name] of [['', 'home'], ['#/transactions', 'transactions'], ['#/categories', 'categories'], ['#/budgets', 'budgets'], ['#/settings', 'settings'], ['#/distribution', 'distribution']]) {
   await m.goto(BASE + path);
   await m.waitForTimeout(500);
