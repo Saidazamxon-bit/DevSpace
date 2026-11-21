@@ -11,6 +11,7 @@ Pastdagi shisha (iOS “Liquid Glass” uslubidagi) tab-bar orqali 4 bo‘lim: *
 - **Hisoblar** — Karta, Naqd, Jamg‘arma va o‘zingiz qo‘shgan hisoblar, qoldiqni to‘g‘rilash, o‘tkazmalar tarixi.
 - **Boshqa** — tranzaksiyalar, budjetlar, doimiy to‘lovlar, kategoriyalar, sozlamalar, zaxira; har birining yonida **ⓘ** tavsif.
 - Telefonda summa ilovaning o‘z raqamli klaviaturasi bilan kiritiladi, `+` va `−` bilan hisoblash mumkin (masalan, `45 000+12 000`).
+- **Daromadni taqsimlash** — daromad tushishi bilan foizlar bo‘yicha hisoblarga avtomatik bo‘linadi (masalan: uyga 20%, qayta investitsiya 40%, o‘zimga 10%, ehson 5%, chiqim 5%; qolgani tushgan hisobda qoladi). Bir bosishda tavsiya etilgan rejani qo‘llash, har bir foiz va hisobni sozlash; daromad tahrirlansa yoki o‘chirilsa taqsimot ham yangilanadi.
 - **Doimiy to‘lovlar** — “Har oy” / “Har hafta”; vaqti kelganda bosh ekranda bir bosishda tasdiqlanadi.
 - **Zaxira eslatmasi** — haftada bir marta.
 - **Tanishtiruv sahifasi** — brauzerda ochilganda: imkoniyatlar, 3 qadam, maxfiylik, savol-javob va “Ilovani o‘rnatish” (Chrome/Edge/Android’da brauzer ruxsat oynasi, iPhone’da yo‘riqnoma). O‘rnatilgan ilova to‘g‘ridan-to‘g‘ri ochiladi.
@@ -58,7 +59,7 @@ Ilova nisbiy yo‘llar (`base: './'`) va hash-routing ishlatadi, shuning uchun i
 ```
 src/
   components/   UI komponentlar (ui/, charts/, settings/, forma va ro‘yxat elementlari)
-  pages/        Landing, Home, Analytics (Tahlil), Accounts, More (Boshqa), Transactions, Recurring, Categories, Budgets, Settings
+  pages/        Landing, Home, Analytics (Tahlil), Accounts, Distribution, More (Boshqa), Transactions, Recurring, Categories, Budgets, Settings
   layouts/      Layout va shisha tab-bar
   hooks/        Ma’lumotlarni jonli o‘qish (useLiveQuery), mavzu, format, onlayn holat
   services/     Ma’lumotlar qatlami: finance (CRUD + validatsiya), backup, crypto, security

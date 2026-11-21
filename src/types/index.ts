@@ -76,8 +76,24 @@ export interface Transfer {
   amount: Minor;
   date: ISODate;
   note: string;
+  /** Daromadni avtomatik taqsimlash natijasida yaratilgan bo‘lsa — manba daromad va foiz */
+  split?: { txId: string; ruleId: string; percent: number };
   createdAt: number;
   updatedAt: number;
+}
+
+/** Daromadni taqsimlash qoidasi: nomi, foizi va qaysi hisobga borishi */
+export interface SplitRule {
+  id: string;
+  name: string;
+  /** 0–100, butun son */
+  percent: number;
+  accountId: string;
+}
+
+export interface DistributionConfig {
+  enabled: boolean;
+  rules: SplitRule[];
 }
 
 export type RecurringFreq = 'weekly' | 'monthly';
@@ -162,6 +178,7 @@ export interface BackupFile {
     accounts?: Account[];
     transfers?: Transfer[];
     recurring?: Recurring[];
+    distribution?: DistributionConfig;
   };
   settings?: Partial<Settings>;
 }

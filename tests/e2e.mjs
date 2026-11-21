@@ -322,7 +322,26 @@ check(norm(await m.locator('[data-testid=balance]').innerText()) === '31 955 000
 const box = await m.locator('[data-testid=balance-panel]').boundingBox();
 const btn = await m.getByRole('button', { name: 'Xarajat qo‘shish', exact: true }).boundingBox();
 check(box && btn && box.y + box.height <= btn.y, 'Mobil: balans birinchi ekranda, −/+ tugmalari uni yopmaydi');
-for (const [path, name] of [['', 'home'], ['#/transactions', 'transactions'], ['#/categories', 'categories'], ['#/budgets', 'budgets'], ['#/settings', 'settings']]) {
+// Daromadni taqsimlash: 100 000 → 20/40/10/5/5 %
+await m.goto(BASE + '#/distribution');
+await m.getByRole('button', { name: /Tavsiya etilgan rejani qo‘llash/ }).click();
+await m.getByText('Reja qo‘llandi').waitFor();
+check(norm(await m.getByTestId('dist-sum').innerText()).startsWith('Jami 80%'), 'Taqsimlash: jami 80%, qolgan 20% hisobda');
+await m.goto(BASE);
+await m.getByRole('button', { name: 'Daromad qo‘shish', exact: true }).click();
+await pad('100');
+await m.locator('[data-numpad] [data-key="000"]').click();
+await m.getByRole('button', { name: 'Tayyor' }).click();
+await m.getByRole('dialog').getByRole('radio', { name: 'Ish haqi', exact: true }).click();
+check((await m.getByTestId('split-preview').locator('li').count()) === 6, 'Formada taqsimot oldindan ko‘rinadi (5 ulush + qoldiq)');
+await m.getByRole('dialog').getByRole('button', { name: 'Saqlash' }).click();
+await m.getByText(/5 ta hisobga taqsimlandi/).waitFor();
+await m.goto(BASE + '#/accounts');
+await m.locator('[data-account]').first().waitFor();
+const accText = norm(await m.locator('main').innerText());
+check(accText.includes('Investitsiya') && accText.includes('40 000 so‘m') && accText.includes('20 000 so‘m'), 'Daromad avtomatik hisoblarga bo‘lindi (Investitsiya 40 000, Uy 20 000)');
+
+for (const [path, name] of [['', 'home'], ['#/transactions', 'transactions'], ['#/categories', 'categories'], ['#/budgets', 'budgets'], ['#/settings', 'settings'], ['#/distribution', 'distribution']]) {
   await m.goto(BASE + path);
   await m.waitForTimeout(500);
   const over = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

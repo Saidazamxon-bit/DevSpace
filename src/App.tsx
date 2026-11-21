@@ -52,6 +52,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Accounts = lazy(() => import('./pages/Accounts'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const More = lazy(() => import('./pages/More'));
+const Distribution = lazy(() => import('./pages/Distribution'));
 const Landing = lazy(() => import('./pages/Landing'));
 const RecurringPage = lazy(() => import('./pages/Recurring'));
 
@@ -126,6 +127,7 @@ export default function App() {
                     <Route path="budgets" element={<Suspense fallback={<PageFallback />}><Budgets /></Suspense>} />
                     <Route path="categories" element={<Suspense fallback={<PageFallback />}><Categories /></Suspense>} />
                     <Route path="analytics" element={<Suspense fallback={<PageFallback />}><Analytics /></Suspense>} />
+                    <Route path="distribution" element={<Suspense fallback={<PageFallback />}><Distribution /></Suspense>} />
                     <Route path="more" element={<Suspense fallback={<PageFallback />}><More /></Suspense>} />
                     <Route path="accounts" element={<Suspense fallback={<PageFallback />}><Accounts /></Suspense>} />
                     <Route path="recurring" element={<Suspense fallback={<PageFallback />}><RecurringPage /></Suspense>} />

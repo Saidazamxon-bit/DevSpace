@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Lock, Search } from 'lucide-react';
 import { useAccounts, useCategories, useSecurityConfig, useTransactions, useTransfers } from '@/hooks/useData';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { getDistribution } from '@/services/finance';
 import { useFormat } from '@/hooks/useFormat';
 import { useLock, useTxForm } from '@/store/ui';
 import { accountBalances, balanceSeries, computeTotals, inRange, type BalancePoint } from '@/utils/stats';
@@ -42,6 +44,7 @@ export default function Home() {
   const [range, setRange] = useState<ChartRange>('month');
   const [hover, setHover] = useState<BalancePoint | null>(null);
   const [showAccounts, setShowAccounts] = useState(false);
+  const distribution = useLiveQuery(() => getDistribution(), []);
   const today = todayISO();
 
   // Manifest yorliqlari: ./#/?add=expense
@@ -228,6 +231,32 @@ export default function Home() {
               <span className="mt-2 block text-[18px] font-bold text-ink" data-testid="month-expense">{data ? <Amount value={data.month.expense} /> : '…'}</span>
             </Link>
           </div>
+
+          {/* Daromad taqsimoti */}
+          <Link to="/distribution" className="card block !p-4 transition-transform active:scale-[0.99]" data-testid="dist-card">
+            <span className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-muted">Daromadni taqsimlash</span>
+              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', distribution?.enabled ? 'bg-income/15 text-income' : 'bg-surface-2 text-subtle')}>
+                {distribution?.enabled ? 'Yoqilgan' : 'O‘chiq'}
+              </span>
+            </span>
+            {distribution && distribution.rules.length > 0 ? (
+              <>
+                <span className="mt-2.5 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
+                  {distribution.rules.map((r) => (
+                    <span key={r.id} className="h-full" style={{ width: `${r.percent}%`, background: accounts?.find((a) => a.id === r.accountId)?.color ?? '#94a3b8' }} />
+                  ))}
+                </span>
+                <span className="mt-2 block truncate text-[13px] text-ink">
+                  {distribution.rules.map((r) => `${r.name} ${r.percent}%`).join(' · ')}
+                </span>
+              </>
+            ) : (
+              <span className="mt-1 block text-[14px] text-ink">
+                Daromad tushishi bilan avtomatik bo‘ling: uyga, investitsiyaga, ehsonga… <span className="font-semibold text-accent">Sozlash →</span>
+              </span>
+            )}
+          </Link>
         </div>
 
         {/* Oxirgi operatsiyalar */}

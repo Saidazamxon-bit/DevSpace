@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, DatabaseBackup, Download, FolderKanban, ListOrdered, Lock, Repeat, Settings, Target, Wallet, type LucideIcon } from 'lucide-react';
+import { ChevronRight, DatabaseBackup, Download, FolderKanban, ListOrdered, Lock, Repeat, Settings, Split, Target, Wallet, type LucideIcon } from 'lucide-react';
 import { useLock } from '@/store/ui';
 import { useSecurityConfig } from '@/hooks/useData';
 import { PageHeader } from '@/components/ui/primitives';
@@ -23,6 +23,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       { to: '/transactions', label: 'Tranzaksiyalar', desc: 'Barcha daromad va xarajatlar', icon: ListOrdered, color: '#2a78d6', info: 'transactions' },
       { to: '/accounts', label: 'Hisoblar', desc: 'Karta, naqd, jamg‘arma', icon: Wallet, color: '#1baf7a', info: 'accounts' },
+      { to: '/distribution', label: 'Daromadni taqsimlash', desc: 'Uyga 20%, investitsiya 40%…', icon: Split, color: '#0ea5b7', info: 'distribution' },
       { to: '/budgets', label: 'Budjetlar', desc: 'Oylik limitlar', icon: Target, color: '#eb6834', info: 'budgets' },
       { to: '/recurring', label: 'Doimiy to‘lovlar', desc: 'Ijara, oylik, internet…', icon: Repeat, color: '#6250d6', info: 'recurring' },
       { to: '/categories', label: 'Kategoriyalar', desc: 'Nom, ikonka va rang', icon: FolderKanban, color: '#e87ba4', info: 'categories' },

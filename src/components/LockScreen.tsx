@@ -4,7 +4,7 @@ import { PinPad } from './PinPad';
 import { useLock } from '@/store/ui';
 import { useSecurityConfig } from '@/hooks/useData';
 import { verifyBiometric, verifyPin } from '@/services/security';
-import { Logo } from './Logo';
+import { formatLongToday } from '@/utils/date';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 30_000;
@@ -68,33 +68,70 @@ export function LockScreen() {
   }
 
   return (
-    <div className="hero fixed inset-0 z-[100] flex flex-col items-center justify-center px-6 pt-[var(--safe-top)] pb-[var(--safe-bottom)] text-white" role="dialog" aria-modal="true" aria-label="Ilova qulflangan">
-      <div className="mb-8 flex flex-col items-center text-center">
-        <Logo size={56} />
-        <h1 className="mt-4 text-xl font-bold">Personal Finance</h1>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
-          <Lock size={14} />
-          {waiting ? `Juda ko‘p urinish. ${Math.ceil((lockedUntil - now) / 1000)} soniya kuting` : wrong ? 'PIN noto‘g‘ri, qayta urinib ko‘ring' : 'PIN-kodni kiriting'}
+    <div
+      className="fixed inset-0 z-[100] flex flex-col items-center overflow-y-auto px-6 pb-[calc(var(--safe-bottom)+1rem)] pt-[calc(var(--safe-top)+min(2.5rem,4dvh))] text-white"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Ilova qulflangan"
+      style={{
+        background:
+          'radial-gradient(90% 60% at 20% 10%, rgb(var(--accent) / 0.95), transparent 70%), radial-gradient(80% 60% at 90% 90%, rgb(var(--accent) / 0.55), transparent 70%), #0b1712',
+      }}
+    >
+      <Clock />
+      <div className="mt-[min(24px,2.5dvh)] flex flex-col items-center text-center">
+        <span className="grid h-11 w-11 place-items-center rounded-full bg-white/15 backdrop-blur">
+          <Lock size={18} />
+        </span>
+        <p className="mt-3 text-[17px] font-semibold">
+          {waiting ? `${Math.ceil((lockedUntil - now) / 1000)} soniya kuting` : wrong ? 'PIN noto‘g‘ri, qayta urinib ko‘ring' : 'PIN-kodni kiriting'}
         </p>
+        <p className="mt-0.5 text-[13px] text-white/65">{waiting ? 'Juda ko‘p noto‘g‘ri urinish' : 'Personal Finance'}</p>
       </div>
-      {cfg && (
-        <PinPad
-          dark
-          value={pin}
-          onChange={(v) => {
-            setPin(v);
-            if (v.length > 0) {
-              setWrong(false);
-              setError(false);
-            }
-          }}
-          length={cfg.pinLength}
-          onComplete={check}
-          error={error}
-          disabled={busy || waiting}
-          onBiometric={cfg.biometricCredentialId ? () => void bio() : undefined}
-        />
+      <div className="mt-auto pt-4">
+        {cfg && (
+          <PinPad
+            dark
+            value={pin}
+            onChange={(v) => {
+              setPin(v);
+              if (v.length > 0) {
+                setWrong(false);
+                setError(false);
+              }
+            }}
+            length={cfg.pinLength}
+            onComplete={check}
+            error={error}
+            disabled={busy || waiting}
+            onBiometric={cfg.biometricCredentialId ? () => void bio() : undefined}
+          />
+        )}
+      </div>
+      {cfg?.biometricCredentialId && (
+        <button type="button" onClick={() => void bio()} className="mt-3 text-[14px] font-medium text-white/80">
+          Face ID / barmoq izi bilan ochish
+        </button>
       )}
+    </div>
+  );
+}
+
+/** Qulf ekranidagi katta soat va sana (iPhone uslubi) */
+function Clock() {
+  const [d, setD] = useState(() => new Date());
+  useEffect(() => {
+    const t = window.setInterval(() => setD(new Date()), 10_000);
+    return () => window.clearInterval(t);
+  }, []);
+  const hh = d.getHours().toString().padStart(2, '0');
+  const mm = d.getMinutes().toString().padStart(2, '0');
+  return (
+    <div className="text-center">
+      <p className="text-[15px] font-medium text-white/80">{formatLongToday(d)}</p>
+      <p className="mt-1 text-[min(76px,9dvh)] font-semibold leading-none tracking-tight tabular">
+        {hh}:{mm}
+      </p>
     </div>
   );
 }

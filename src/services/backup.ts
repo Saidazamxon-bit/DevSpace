@@ -1,11 +1,11 @@
 import { db, SCHEMA_VERSION } from '@/database/db';
-import type { Account, BackupFile, Budget, Category, EncryptedBackupFile, Recurring, Settings, Transaction, Transfer } from '@/types';
+import type { Account, BackupFile, Budget, Category, DistributionConfig, EncryptedBackupFile, Recurring, Settings, SplitRule, Transaction, Transfer } from '@/types';
 import { DEFAULT_ACCOUNT_IDS, defaultAccounts } from '@/database/defaults';
 import { isValidISODate, todayISO } from '@/utils/date';
 import { cleanText, uuid } from '@/utils/misc';
 import { CURRENCIES, MAX_MINOR, minorToDecimalString } from '@/utils/money';
 import { decryptText, encryptText } from './crypto';
-import { ACCOUNT_KINDS, ACCOUNT_NAME_MAX, CATEGORY_NAME_MAX, META_INITIAL_BALANCE, META_LAST_BACKUP, NOTE_MAX, PAYMENT_LABEL, setMeta } from './finance';
+import { ACCOUNT_KINDS, ACCOUNT_NAME_MAX, CATEGORY_NAME_MAX, getDistribution, META_DISTRIBUTION, META_INITIAL_BALANCE, META_LAST_BACKUP, NOTE_MAX, PAYMENT_LABEL, setMeta } from './finance';
 
 declare const __APP_VERSION__: string;
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
@@ -15,13 +15,14 @@ export const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
 // ───────────────────────── Eksport ─────────────────────────
 
 export async function buildBackup(settings?: Partial<Settings>): Promise<BackupFile> {
-  const [transactions, categories, budgets, accounts, transfers, recurring] = await Promise.all([
+  const [transactions, categories, budgets, accounts, transfers, recurring, distribution] = await Promise.all([
     db.transactions.orderBy('date').toArray(),
     db.categories.orderBy('order').toArray(),
     db.budgets.toArray(),
     db.accounts.orderBy('order').toArray(),
     db.transfers.orderBy('date').toArray(),
     db.recurring.toArray(),
+    getDistribution(),
   ]);
   return {
     app: 'personal-finance',
@@ -30,7 +31,7 @@ export async function buildBackup(settings?: Partial<Settings>): Promise<BackupF
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     // initialBalance: v3 dan boshlab hisoblarda saqlanadi
-    data: { transactions, categories, budgets, initialBalance: 0, accounts, transfers, recurring },
+    data: { transactions, categories, budgets, initialBalance: 0, accounts, transfers, recurring, distribution },
     settings,
   };
 }
@@ -196,9 +197,26 @@ function vTransfer(x: unknown): Transfer | null {
     amount: x.amount,
     date: x.date,
     note: cleanText(x.note ?? '', NOTE_MAX),
+    ...(isObj(x.split) && isStr(x.split.txId) && ID_RE.test(x.split.txId) && isStr(x.split.ruleId) && isInt(x.split.percent) && x.split.percent >= 0 && x.split.percent <= 100
+      ? { split: { txId: x.split.txId, ruleId: x.split.ruleId.slice(0, 64), percent: x.split.percent } }
+      : {}),
     createdAt: isInt(x.createdAt) ? x.createdAt : now,
     updatedAt: isInt(x.updatedAt) ? x.updatedAt : now,
   };
+}
+
+function vDistribution(x: unknown, accIds: Set<string>): DistributionConfig | undefined {
+  if (!isObj(x) || !Array.isArray(x.rules)) return undefined;
+  const rules: SplitRule[] = [];
+  let sum = 0;
+  for (const r of x.rules) {
+    if (!isObj(r) || !isStr(r.accountId) || !accIds.has(r.accountId) || !isInt(r.percent) || r.percent < 0 || r.percent > 100) continue;
+    const name = cleanText(r.name, ACCOUNT_NAME_MAX);
+    if (!name || sum + r.percent > 100) continue;
+    sum += r.percent;
+    rules.push({ id: isStr(r.id) && ID_RE.test(r.id) ? r.id : uuid(), name, percent: r.percent, accountId: r.accountId });
+  }
+  return { enabled: x.enabled === true && rules.length > 0, rules };
 }
 
 function vRecurring(x: unknown): Recurring | null {
@@ -344,7 +362,7 @@ export function validateBackup(raw: unknown): ParsedBackup {
       schemaVersion: isInt(raw.schemaVersion) ? raw.schemaVersion : SCHEMA_VERSION,
       exportedAt: isStr(raw.exportedAt) ? raw.exportedAt : '',
       appVersion: isStr(raw.appVersion) ? raw.appVersion : '',
-      data: { transactions, categories, budgets, initialBalance, accounts, transfers, recurring },
+      data: { transactions, categories, budgets, initialBalance, accounts, transfers, recurring, distribution: vDistribution(data.distribution, accIds) },
       settings: vSettings(raw.settings),
     },
     stats: { transactions: transactions.length, categories: categories.length, budgets: budgets.length, accounts: accounts.length, skipped },
@@ -366,6 +384,7 @@ export async function applyBackup(parsed: ParsedBackup, mode: ImportMode): Promi
   const accounts = parsed.backup.data.accounts ?? [];
   const transfers = parsed.backup.data.transfers ?? [];
   const recurring = parsed.backup.data.recurring ?? [];
+  const distribution = parsed.backup.data.distribution;
 
   await db.transaction('rw', [db.transactions, db.categories, db.budgets, db.meta, db.accounts, db.transfers, db.recurring], async () => {
     const idMap = new Map<string, string>();
@@ -463,6 +482,17 @@ export async function applyBackup(parsed: ParsedBackup, mode: ImportMode): Promi
       const cat = catById.get(categoryId);
       if (!cat || cat.type !== t.type) categoryId = await ensureFallback(t.type);
       fixedTx.push({ ...t, categoryId, accountId: fixAcc(t.accountId) });
+    }
+
+    // Taqsimlash qoidalari: almashtirishda — zaxiradagisi; birlashtirishda — faqat hali sozlanmagan bo‘lsa
+    if (distribution) {
+      const current = (await db.meta.get(META_DISTRIBUTION))?.value as DistributionConfig | undefined;
+      if (mode === 'replace' || !current || !current.rules?.length) {
+        const rules = distribution.rules.map((r) => ({ ...r, accountId: fixAcc(r.accountId) }));
+        await db.meta.put({ key: META_DISTRIBUTION, value: { enabled: distribution.enabled && rules.length > 0, rules }, updatedAt: Date.now() });
+      }
+    } else if (mode === 'replace') {
+      await db.meta.delete(META_DISTRIBUTION);
     }
 
     const fixedTr = transfers.map((t) => ({ ...t, fromId: fixAcc(t.fromId), toId: fixAcc(t.toId) })).filter((t) => t.fromId !== t.toId);

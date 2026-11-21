@@ -107,16 +107,16 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
           }}
           className={cn(
             'input tabular font-semibold',
-            large ? 'h-16 text-3xl rounded-2xl' : '',
-            cur.position === 'prefix' ? (large ? 'pl-10' : 'pl-8') : '',
-            cur.position === 'suffix' ? (large ? 'pr-20' : 'pr-16') : '',
+            large ? 'amount-input h-[76px] rounded-[24px] border-transparent bg-surface-2 text-center text-[36px] font-bold tracking-tight focus:bg-surface' : '',
+            cur.position === 'prefix' ? (large ? 'px-12' : 'pl-8') : '',
+            cur.position === 'suffix' ? (large ? 'px-20' : 'pr-16') : '',
             touch && 'cursor-pointer caret-transparent select-none',
             touch && padOpen && '!border-accent ring-4 ring-accent/15',
             error && 'input-error',
           )}
         />
         {cur.position === 'suffix' && (
-          <span className={cn('pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-semibold text-subtle', large ? 'text-lg' : 'text-sm')}>
+          <span className={cn('pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 font-semibold text-subtle', large ? 'text-[17px]' : 'text-sm')}>
             {cur.symbol}
           </span>
         )}

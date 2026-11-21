@@ -4,7 +4,7 @@
  * Kelajakda server bilan sinxronlash qo‘shilsa, o‘zgarishlarni shu funksiyalarda navbatga qo‘yish kifoya.
  */
 import { db } from '@/database/db';
-import type { Account, AccountKind, Budget, Category, Minor, PaymentMethod, Recurring, RecurringFreq, SecurityConfig, Transaction, Transfer, TxType } from '@/types';
+import type { Account, AccountKind, Budget, Category, DistributionConfig, Minor, PaymentMethod, Recurring, RecurringFreq, SecurityConfig, SplitRule, Transaction, Transfer, TxType } from '@/types';
 import { cleanText, uuid } from '@/utils/misc';
 import { isValidISODate } from '@/utils/date';
 import { MAX_MINOR } from '@/utils/money';
@@ -75,6 +75,13 @@ export async function addTransaction(input: TransactionInput): Promise<Transacti
 }
 
 export async function updateTransaction(id: string, input: TransactionInput): Promise<void> {
+  await db.transaction('rw', [db.transactions, db.categories, db.accounts, db.transfers], async () => {
+    await updateTransactionInner(id, input);
+    await resyncSplit(id);
+  });
+}
+
+async function updateTransactionInner(id: string, input: TransactionInput): Promise<void> {
   const v = await validateTx(input);
   const count = await db.transactions.update(id, {
     type: v.type,
@@ -89,15 +96,26 @@ export async function updateTransaction(id: string, input: TransactionInput): Pr
   if (!count) throw new ValidationError('Tranzaksiya topilmadi');
 }
 
-export async function deleteTransaction(id: string): Promise<Transaction | undefined> {
-  const existing = await db.transactions.get(id);
-  await db.transactions.delete(id);
-  return existing;
+export type RemovedTransaction = Transaction & { _splits?: Transfer[] };
+
+/** Tranzaksiyani o‘chirish; unga bog‘liq taqsimot o‘tkazmalari ham o‘chiriladi (qaytarish uchun saqlanadi) */
+export async function deleteTransaction(id: string): Promise<RemovedTransaction | undefined> {
+  return db.transaction('rw', [db.transactions, db.transfers], async () => {
+    const existing = await db.transactions.get(id);
+    const splits = await db.transfers.filter((t) => t.split?.txId === id).toArray();
+    await db.transactions.delete(id);
+    await db.transfers.bulkDelete(splits.map((t) => t.id));
+    return existing ? { ...existing, _splits: splits } : undefined;
+  });
 }
 
-/** “Bekor qilish” uchun o‘chirilgan yozuvni qayta tiklash */
-export async function restoreTransaction(tx: Transaction): Promise<void> {
-  await db.transactions.put(tx);
+/** “Bekor qilish” uchun o‘chirilgan yozuvni (va uning taqsimotini) qayta tiklash */
+export async function restoreTransaction(tx: RemovedTransaction): Promise<void> {
+  const { _splits, ...plain } = tx;
+  await db.transaction('rw', [db.transactions, db.transfers], async () => {
+    await db.transactions.put(plain);
+    if (_splits?.length) await db.transfers.bulkPut(_splits);
+  });
 }
 
 // ───────────────────────── Kategoriyalar ─────────────────────────
@@ -217,6 +235,7 @@ export const META_SECURITY = 'security';
 export const META_ONBOARDING = 'onboardingDismissed';
 export const META_LAST_BACKUP = 'lastBackupAt';
 export const META_BACKUP_SNOOZE = 'backupSnoozeUntil';
+export const META_DISTRIBUTION = 'distribution';
 
 export async function getMeta<T>(key: string, fallback: T): Promise<T> {
   const r = await db.meta.get(key);
@@ -260,7 +279,7 @@ export async function wipeAllData(): Promise<void> {
     await db.accounts.clear();
     await db.categories.bulkAdd(defaultCategories());
     await db.accounts.bulkAdd(defaultAccounts());
-    await db.meta.where('key').anyOf([META_INITIAL_BALANCE, META_ONBOARDING, META_LAST_BACKUP, META_BACKUP_SNOOZE]).delete();
+    await db.meta.where('key').anyOf([META_INITIAL_BALANCE, META_ONBOARDING, META_LAST_BACKUP, META_BACKUP_SNOOZE, META_DISTRIBUTION]).delete();
   });
 }
 
@@ -353,7 +372,7 @@ export async function countAccountUsage(id: string): Promise<number> {
  * boshlang‘ich qoldig‘i ham qo‘shiladi — umumiy balans o‘zgarmaydi.
  */
 export async function deleteAccount(id: string, reassignTo?: string): Promise<void> {
-  await db.transaction('rw', [db.accounts, db.transactions, db.transfers, db.recurring], async () => {
+  await db.transaction('rw', [db.accounts, db.transactions, db.transfers, db.recurring, db.meta], async () => {
     const acc = await db.accounts.get(id);
     if (!acc) throw new ValidationError('Hisob topilmadi');
     if ((await db.accounts.count()) <= 1) throw new ValidationError('Kamida bitta hisob qolishi kerak');
@@ -370,6 +389,14 @@ export async function deleteAccount(id: string, reassignTo?: string): Promise<vo
       // O‘ziga o‘tkazma bo‘lib qolganlari ma’nosiz — o‘chiriladi
       await db.transfers.filter((t) => t.fromId === t.toId).delete();
       await db.accounts.update(reassignTo, { initialBalance: target.initialBalance + acc.initialBalance, updatedAt: now });
+    }
+    // Taqsimlash qoidalari: o‘chgan hisob o‘rniga tanlangan hisob (yoki qoida olib tashlanadi)
+    const dist = await getDistribution();
+    if (dist.rules.some((r) => r.accountId === id)) {
+      const rules = dist.rules
+        .map((r) => (r.accountId === id ? (reassignTo && reassignTo !== id ? { ...r, accountId: reassignTo } : null) : r))
+        .filter((r): r is SplitRule => !!r);
+      await setMeta(META_DISTRIBUTION, { ...dist, rules });
     }
     await db.accounts.delete(id);
   });
@@ -453,11 +480,12 @@ export async function deleteRecurring(id: string): Promise<void> {
 
 /** Muddati kelgan doimiy to‘lovni tasdiqlash: tranzaksiya yaratiladi va oxirgi sana yangilanadi */
 export async function confirmRecurring(id: string, date: string, amount?: Minor): Promise<Transaction> {
-  return db.transaction('rw', [db.recurring, db.transactions, db.categories, db.accounts], async () => {
+  return db.transaction('rw', [db.recurring, db.transactions, db.categories, db.accounts, db.transfers, db.meta], async () => {
     const r = await db.recurring.get(id);
     if (!r) throw new ValidationError('Doimiy to‘lov topilmadi');
     const tx = await addTransaction({ type: r.type, amount: amount ?? r.amount, categoryId: r.categoryId, accountId: r.accountId, date, note: r.note });
     await db.recurring.update(id, { lastDate: date, updatedAt: Date.now() });
+    if (tx.type === 'income') await distributeIncome(tx);
     return tx;
   });
 }
@@ -465,4 +493,110 @@ export async function confirmRecurring(id: string, date: string, amount?: Minor)
 /** Bu safar o‘tkazib yuborish (tranzaksiya yaratilmaydi) */
 export async function skipRecurring(id: string, date: string): Promise<void> {
   await db.recurring.update(id, { lastDate: date, updatedAt: Date.now() });
+}
+
+// ───────────────────────── Daromadni taqsimlash ─────────────────────────
+
+export const DEFAULT_DISTRIBUTION: DistributionConfig = { enabled: false, rules: [] };
+
+export async function getDistribution(): Promise<DistributionConfig> {
+  const v = await getMeta<DistributionConfig | null>(META_DISTRIBUTION, null);
+  return v && Array.isArray(v.rules) ? { enabled: !!v.enabled, rules: v.rules } : DEFAULT_DISTRIBUTION;
+}
+
+export async function saveDistribution(cfg: DistributionConfig): Promise<void> {
+  const accounts = new Set((await db.accounts.toArray()).map((a) => a.id));
+  const rules: SplitRule[] = [];
+  for (const r of cfg.rules) {
+    const name = cleanText(r.name, ACCOUNT_NAME_MAX);
+    if (!name) throw new ValidationError('Har bir qoidaga nom bering');
+    if (!Number.isInteger(r.percent) || r.percent < 0 || r.percent > 100) throw new ValidationError('Foiz 0 dan 100 gacha butun son bo‘lsin');
+    if (!accounts.has(r.accountId)) throw new ValidationError(`“${name}” uchun hisob tanlang`);
+    rules.push({ id: r.id || uuid(), name, percent: r.percent, accountId: r.accountId });
+  }
+  const sum = rules.reduce((s, r) => s + r.percent, 0);
+  if (sum > 100) throw new ValidationError(`Foizlar yig‘indisi 100% dan oshmasin (hozir ${sum}%)`);
+  await setMeta(META_DISTRIBUTION, { enabled: cfg.enabled && rules.length > 0, rules });
+}
+
+/**
+ * Taqsimot hisobi (butun sonlarda): har bir ulush = ⌊summa × foiz / 100⌋.
+ * Daromad tushgan hisobning o‘ziga yo‘naltirilgan qoidalar o‘tkazilmaydi.
+ */
+export function computeSplit(amount: Minor, rules: SplitRule[], sourceAccountId: string): { rule: SplitRule; amount: Minor }[] {
+  return rules
+    .filter((r) => r.percent > 0 && r.accountId !== sourceAccountId)
+    .map((r) => ({ rule: r, amount: Math.floor((amount * r.percent) / 100) }))
+    .filter((p) => p.amount > 0);
+}
+
+/** Daromadni yoqilgan qoidalar bo‘yicha hisoblarga o‘tkazish. Yaratilgan o‘tkazmalar soni qaytadi. */
+export async function distributeIncome(tx: Transaction): Promise<number> {
+  if (tx.type !== 'income') return 0;
+  const cfg = await getDistribution();
+  if (!cfg.enabled) return 0;
+  const accounts = new Set((await db.accounts.toArray()).map((a) => a.id));
+  const parts = computeSplit(tx.amount, cfg.rules.filter((r) => accounts.has(r.accountId)), tx.accountId);
+  const now = Date.now();
+  const rows: Transfer[] = parts.map((p) => ({
+    id: uuid(),
+    fromId: tx.accountId,
+    toId: p.rule.accountId,
+    amount: p.amount,
+    date: tx.date,
+    note: `${p.rule.name} · ${p.rule.percent}%`,
+    split: { txId: tx.id, ruleId: p.rule.id, percent: p.rule.percent },
+    createdAt: now,
+    updatedAt: now,
+  }));
+  await db.transfers.bulkAdd(rows);
+  return rows.length;
+}
+
+/** Daromad qo‘shib, darhol taqsimlash (atomar) */
+export async function addIncomeWithSplit(input: TransactionInput, distribute: boolean): Promise<{ tx: Transaction; parts: number }> {
+  return db.transaction('rw', [db.transactions, db.categories, db.accounts, db.transfers, db.meta], async () => {
+    const tx = await addTransaction(input);
+    const parts = distribute ? await distributeIncome(tx) : 0;
+    return { tx, parts };
+  });
+}
+
+/** Daromad tahrirlanganda unga bog‘liq taqsimotni yangilash (summa, hisob, sana) */
+async function resyncSplit(txId: string): Promise<void> {
+  const linked = await db.transfers.filter((t) => t.split?.txId === txId).toArray();
+  if (!linked.length) return;
+  const tx = await db.transactions.get(txId);
+  if (!tx || tx.type !== 'income') {
+    await db.transfers.bulkDelete(linked.map((t) => t.id));
+    return;
+  }
+  const now = Date.now();
+  for (const t of linked) {
+    const amount = Math.floor((tx.amount * (t.split?.percent ?? 0)) / 100);
+    if (amount <= 0 || t.toId === tx.accountId) await db.transfers.delete(t.id);
+    else await db.transfers.update(t.id, { amount, fromId: tx.accountId, date: tx.date, updatedAt: now });
+  }
+}
+
+/** Tavsiya etilgan reja: Uyga 20%, Qayta investitsiya 40%, O‘zimga 10%, Ehson 5%, Chiqim 5% — hisoblar ham yaratiladi */
+export const DISTRIBUTION_TEMPLATE: { name: string; percent: number; account: string; icon: string; color: string; kind: AccountKind }[] = [
+  { name: 'Uyga', percent: 20, account: 'Uy uchun', icon: 'home', color: '#8b5e3c', kind: 'savings' },
+  { name: 'Qayta investitsiya', percent: 40, account: 'Investitsiya', icon: 'trending-up', color: '#2a78d6', kind: 'savings' },
+  { name: 'O‘zimga', percent: 10, account: 'O‘zim uchun', icon: 'sparkles', color: '#e87ba4', kind: 'savings' },
+  { name: 'Ehson', percent: 5, account: 'Ehson', icon: 'heart', color: '#1baf7a', kind: 'other' },
+  { name: 'Chiqim', percent: 5, account: 'Chiqim', icon: 'receipt', color: '#eb6834', kind: 'other' },
+];
+
+export async function applyDistributionTemplate(): Promise<DistributionConfig> {
+  const existing = await db.accounts.toArray();
+  const byName = new Map(existing.map((a) => [a.name.toLocaleLowerCase(), a]));
+  const rules: SplitRule[] = [];
+  for (const t of DISTRIBUTION_TEMPLATE) {
+    const acc = byName.get(t.account.toLocaleLowerCase()) ?? (await addAccount({ name: t.account, kind: t.kind, icon: t.icon, color: t.color, currentBalance: 0 }));
+    rules.push({ id: uuid(), name: t.name, percent: t.percent, accountId: acc.id });
+  }
+  const cfg = { enabled: true, rules };
+  await saveDistribution(cfg);
+  return cfg;
 }

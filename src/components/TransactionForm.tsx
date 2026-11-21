@@ -7,7 +7,9 @@ import { useTxForm, toast, confirmDialog, errorMessage } from '@/store/ui';
 import { useAccounts, useCategories } from '@/hooks/useData';
 import { useSettings } from '@/store/settings';
 import { useFormat } from '@/hooks/useFormat';
-import { addRecurring, addTransaction, deleteTransaction, restoreTransaction, updateTransaction, NOTE_MAX } from '@/services/finance';
+import { addIncomeWithSplit, addRecurring, addTransaction, computeSplit, deleteTransaction, getDistribution, restoreTransaction, updateTransaction, NOTE_MAX } from '@/services/finance';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { Switch } from './ui/primitives';
 import { checkBudgetAfterExpense } from '@/services/budgetAlerts';
 import type { RecurringFreq, TxType } from '@/types';
 import { isValidISODate, todayISO, addDays } from '@/utils/date';
@@ -32,6 +34,8 @@ export function TransactionForm() {
   const [note, setNote] = useState('');
   const [accountId, setAccountId] = useState('');
   const [repeat, setRepeat] = useState<'none' | RecurringFreq>('none');
+  const [distribute, setDistribute] = useState(true);
+  const distribution = useLiveQuery(() => getDistribution(), []);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -56,6 +60,7 @@ export function TransactionForm() {
       setNote('');
       setAccountId(lastAccount());
       setRepeat(presetRepeat ?? 'none');
+      setDistribute(true);
     }
   }, [open, editing, initialType, presetCategory, presetRepeat, numberFormat]);
 
@@ -71,6 +76,13 @@ export function TransactionForm() {
   }, [options, categoryId, categories]);
 
   const parsed = parseAmountInput(amount, numberFormat);
+  // Daromadni avtomatik taqsimlash (faqat yangi daromad uchun)
+  const canSplit = type === 'income' && !editing && !!distribution?.enabled && distribution.rules.length > 0;
+  const splitOn = canSplit && distribute;
+  const splitPreview = useMemo(
+    () => (canSplit && parsed.ok ? computeSplit(parsed.value, distribution!.rules, accountId) : []),
+    [canSplit, parsed, distribution, accountId],
+  );
   const isIncome = type === 'income';
   const today = todayISO();
   const yesterday = addDays(today, -1);
@@ -95,11 +107,16 @@ export function TransactionForm() {
         await updateTransaction(editing.id, input);
         toast.success('O‘zgarishlar saqlandi');
       } else {
-        await addTransaction(input);
+        let parts = 0;
+        if (isIncome) parts = (await addIncomeWithSplit(input, splitOn)).parts;
+        else await addTransaction(input);
         if (repeat !== 'none') {
           await addRecurring({ type, amount: parsed.value, categoryId, accountId, note, freq: repeat, startDate: date, lastDate: date });
         }
-        toast.success(isIncome ? 'Daromad qo‘shildi' : 'Xarajat qo‘shildi', repeat === 'none' ? money(parsed.value) : `${money(parsed.value)} · ${repeat === 'monthly' ? 'har oy' : 'har hafta'} eslatiladi`);
+        toast.success(
+          isIncome ? 'Daromad qo‘shildi' : 'Xarajat qo‘shildi',
+          [money(parsed.value), parts ? `${parts} ta hisobga taqsimlandi` : '', repeat !== 'none' ? `${repeat === 'monthly' ? 'har oy' : 'har hafta'} eslatiladi` : ''].filter(Boolean).join(' · '),
+        );
         rememberAccount(accountId);
       }
       if (type === 'expense') void checkBudgetAfterExpense(categoryId, date);
@@ -272,6 +289,29 @@ export function TransactionForm() {
           {errors.date && <p className="mt-1.5 text-[13px] text-expense" role="alert">{errors.date}</p>}
         </div>
 
+        {canSplit && (
+          <div className="rounded-2xl bg-surface-2 p-3.5" data-testid="split-preview">
+            <Switch checked={distribute} onChange={setDistribute} label="Avtomatik taqsimlash" description="Foizlar bo‘yicha hisoblarga o‘tkaziladi" />
+            {distribute && splitPreview.length > 0 && (
+              <ul className="mt-2.5 space-y-1 border-t border-line/70 pt-2.5">
+                {splitPreview.map((p) => (
+                  <li key={p.rule.id} className="flex items-center justify-between gap-2 text-[14px]">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-ink">{p.rule.name}</span>
+                      <span className="text-[12px] text-subtle">{p.rule.percent}%</span>
+                    </span>
+                    <span className="tabular font-semibold text-ink">{money(p.amount)}</span>
+                  </li>
+                ))}
+                <li className="flex items-center justify-between gap-2 text-[13px] text-muted">
+                  <span>Hisobda qoladi</span>
+                  <span className="tabular font-semibold">{money(parsed.ok ? parsed.value - splitPreview.reduce((s, p) => s + p.amount, 0) : 0)}</span>
+                </li>
+              </ul>
+            )}
+          </div>
+        )}
+
         {!editing && (
           <div>
             <span className="label" id="rep-label">Takrorlash</span>
@@ -328,3 +368,4 @@ function rememberAccount(id: string) {
     /* */
   }
 }
+

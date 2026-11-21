@@ -2,7 +2,10 @@ import { useEffect } from 'react';
 import { Delete, Fingerprint } from 'lucide-react';
 import { cn } from '@/utils/misc';
 
-/** Raqamli PIN klaviaturasi (sensorli ekran va klaviatura bilan ishlaydi) */
+/**
+ * PIN klaviaturasi — iPhone qulf ekrani uslubida: dumaloq shisha tugmalar.
+ * Sensorli ekran va jismoniy klaviatura bilan ishlaydi.
+ */
 export function PinPad({
   value,
   onChange,
@@ -24,6 +27,11 @@ export function PinPad({
 }) {
   const press = (d: string) => {
     if (disabled || value.length >= length) return;
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      /* */
+    }
     const next = value + d;
     onChange(next);
     if (next.length === length) onComplete(next);
@@ -40,32 +48,47 @@ export function PinPad({
   });
 
   const keyCls = cn(
-    'grid h-16 w-16 sm:h-[68px] sm:w-[68px] place-items-center rounded-full text-2xl font-semibold transition-all active:scale-90 disabled:opacity-40',
-    dark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-surface-2 text-ink hover:bg-line',
+    'grid h-[min(74px,8.4dvh)] w-[min(74px,8.4dvh)] min-h-[54px] min-w-[54px] place-items-center rounded-full text-[min(32px,3.8dvh)] font-light tabular select-none transition-[transform,background-color] duration-100 active:scale-95 disabled:opacity-40 touch-manipulation',
+    dark
+      ? 'bg-white/[0.14] text-white backdrop-blur-md shadow-[inset_0_1px_0_rgb(255_255_255/0.25)] active:bg-white/35'
+      : 'bg-surface-2 text-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.6),0_1px_2px_rgb(15_23_42/0.08)] active:bg-line',
   );
+  const ghostCls = cn('grid h-[min(74px,8.4dvh)] w-[min(74px,8.4dvh)] min-h-[54px] min-w-[54px] place-items-center rounded-full transition-transform active:scale-95 disabled:opacity-40', dark ? 'text-white' : 'text-ink');
 
   return (
     <div className="flex flex-col items-center">
-      <div className={cn('mb-8 flex gap-3.5', error && 'animate-[shake_.35s]')} aria-label={`${value.length} / ${length} raqam kiritildi`} role="status">
+      <div
+        className={cn('mb-[min(40px,4dvh)] flex gap-4', error && 'animate-[shake_.4s]')}
+        aria-label={`${value.length} / ${length} raqam kiritildi`}
+        role="status"
+      >
         {Array.from({ length }).map((_, i) => (
           <span
             key={i}
             className={cn(
-              'h-3.5 w-3.5 rounded-full border-2 transition-all duration-150',
-              error ? 'border-rose-400 bg-rose-400' : i < value.length ? (dark ? 'border-white bg-white scale-110' : 'border-accent bg-accent scale-110') : dark ? 'border-white/40' : 'border-subtle',
+              'h-[13px] w-[13px] rounded-full border-[1.5px] transition-all duration-150',
+              error
+                ? 'border-rose-300 bg-rose-300'
+                : i < value.length
+                  ? dark
+                    ? 'scale-110 border-white bg-white'
+                    : 'scale-110 border-ink bg-ink'
+                  : dark
+                    ? 'border-white/80'
+                    : 'border-ink/60',
             )}
           />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-4 sm:gap-5">
+      <div className="grid grid-cols-3 gap-x-6 gap-y-[min(16px,1.6dvh)]">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((d) => (
           <button key={d} type="button" className={keyCls} onClick={() => press(d)} disabled={disabled}>
             {d}
           </button>
         ))}
         {onBiometric ? (
-          <button type="button" className={cn(keyCls, '!bg-transparent')} onClick={onBiometric} aria-label="Biometrik tasdiqlash" disabled={disabled}>
-            <Fingerprint size={28} />
+          <button type="button" className={ghostCls} onClick={onBiometric} aria-label="Biometrik tasdiqlash" disabled={disabled}>
+            <Fingerprint size={30} strokeWidth={1.6} />
           </button>
         ) : (
           <span />
@@ -73,8 +96,8 @@ export function PinPad({
         <button type="button" className={keyCls} onClick={() => press('0')} disabled={disabled}>
           0
         </button>
-        <button type="button" className={cn(keyCls, '!bg-transparent')} onClick={back} aria-label="O‘chirish" disabled={disabled}>
-          <Delete size={26} />
+        <button type="button" className={cn(ghostCls, 'text-[15px] font-medium')} onClick={back} aria-label="O‘chirish" disabled={disabled || !value}>
+          <Delete size={26} strokeWidth={1.7} />
         </button>
       </div>
     </div>

@@ -36,6 +36,15 @@ export const INFO = {
       'Ishlatilgan kategoriyani o‘chirsangiz, uning yozuvlari boshqa kategoriyaga ko‘chiriladi — hech narsa yo‘qolmaydi.',
     ],
   },
+  distribution: {
+    title: 'Daromadni taqsimlash nima?',
+    body: [
+      'Har bir daromad tushishi bilan uni oldindan belgilangan foizlarda bo‘lib qo‘yish usuli. Masalan: 20% uyga, 40% qayta investitsiyaga, 10% o‘zingizga, 5% ehsonga, 5% chiqimga.',
+      'Har bir ulush alohida hisobga (konvertga) boradi. Daromad qo‘shganingizda ilova uni avtomatik ravishda shu hisoblarga o‘tkazadi — qo‘lda hisoblash shart emas.',
+      'Foizlar yig‘indisi 100% dan kam bo‘lsa, qolgani daromad tushgan hisobda qoladi.',
+      'Daromadni tahrirlasangiz yoki o‘chirsangiz, taqsimot ham avtomatik yangilanadi. Kerak bo‘lsa, daromad qo‘shayotganda taqsimlashni shu safar uchun o‘chirib qo‘yish mumkin.',
+    ],
+  },
   transactions: {
     title: 'Tranzaksiyalar',
     body: [
