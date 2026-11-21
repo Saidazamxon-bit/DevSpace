@@ -8,6 +8,7 @@ const tx = (p: Partial<Transaction>): Transaction => ({
   type: 'expense',
   amount: 100,
   categoryId: 'exp-food',
+  accountId: 'acc-card',
   date: '2026-11-10',
   note: '',
   paymentMethod: 'card',

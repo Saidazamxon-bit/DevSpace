@@ -19,8 +19,11 @@ export interface Transaction {
   type: TxType;
   amount: Minor;
   categoryId: string;
+  /** Qaysi hisobdan/hisobga (Karta, Naqd, Jamg‘arma …) */
+  accountId: string;
   date: ISODate;
   note: string;
+  /** Eski maydon (v1–v2). Hisob turidan avtomatik to‘ldiriladi */
   paymentMethod: PaymentMethod;
   createdAt: number;
   updatedAt: number;
@@ -45,6 +48,54 @@ export interface Budget {
   categoryId: string;
   /** Oylik limit (tiyin) */
   limit: Minor;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type AccountKind = 'card' | 'cash' | 'savings' | 'other';
+
+/** Pul turadigan joy: karta, naqd, jamg‘arma va h.k. */
+export interface Account {
+  id: string;
+  name: string;
+  kind: AccountKind;
+  icon: string;
+  color: string;
+  /** Boshlang‘ich qoldiq (tiyin). Joriy qoldiq = boshlang‘ich + daromad − xarajat ± o‘tkazmalar */
+  initialBalance: Minor;
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Hisoblar orasidagi o‘tkazma (daromad ham, xarajat ham emas) */
+export interface Transfer {
+  id: string;
+  fromId: string;
+  toId: string;
+  amount: Minor;
+  date: ISODate;
+  note: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type RecurringFreq = 'weekly' | 'monthly';
+
+/** Doimiy (takrorlanuvchi) to‘lov yoki daromad: ijara, oylik, internet … */
+export interface Recurring {
+  id: string;
+  type: TxType;
+  amount: Minor;
+  categoryId: string;
+  accountId: string;
+  note: string;
+  freq: RecurringFreq;
+  /** Birinchi sana — kun/hafta kuni shundan olinadi */
+  startDate: ISODate;
+  /** Oxirgi qayd etilgan (yoki o‘tkazib yuborilgan) sana */
+  lastDate: ISODate | null;
+  active: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -106,7 +157,11 @@ export interface BackupFile {
     transactions: Transaction[];
     categories: Category[];
     budgets: Budget[];
+    /** Eski (v1–v2) umumiy boshlang‘ich balans — endi hisoblarda saqlanadi */
     initialBalance: Minor;
+    accounts?: Account[];
+    transfers?: Transfer[];
+    recurring?: Recurring[];
   };
   settings?: Partial<Settings>;
 }

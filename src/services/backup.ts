@@ -1,10 +1,11 @@
 import { db, SCHEMA_VERSION } from '@/database/db';
-import type { BackupFile, Budget, Category, EncryptedBackupFile, Settings, Transaction } from '@/types';
+import type { Account, BackupFile, Budget, Category, EncryptedBackupFile, Recurring, Settings, Transaction, Transfer } from '@/types';
+import { DEFAULT_ACCOUNT_IDS, defaultAccounts } from '@/database/defaults';
 import { isValidISODate, todayISO } from '@/utils/date';
 import { cleanText, uuid } from '@/utils/misc';
 import { CURRENCIES, MAX_MINOR, minorToDecimalString } from '@/utils/money';
 import { decryptText, encryptText } from './crypto';
-import { CATEGORY_NAME_MAX, getMeta, META_INITIAL_BALANCE, NOTE_MAX, PAYMENT_LABEL } from './finance';
+import { ACCOUNT_KINDS, ACCOUNT_NAME_MAX, CATEGORY_NAME_MAX, META_INITIAL_BALANCE, META_LAST_BACKUP, NOTE_MAX, PAYMENT_LABEL, setMeta } from './finance';
 
 declare const __APP_VERSION__: string;
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
@@ -14,11 +15,13 @@ export const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
 // ───────────────────────── Eksport ─────────────────────────
 
 export async function buildBackup(settings?: Partial<Settings>): Promise<BackupFile> {
-  const [transactions, categories, budgets, initialBalance] = await Promise.all([
+  const [transactions, categories, budgets, accounts, transfers, recurring] = await Promise.all([
     db.transactions.orderBy('date').toArray(),
     db.categories.orderBy('order').toArray(),
     db.budgets.toArray(),
-    getMeta<number>(META_INITIAL_BALANCE, 0),
+    db.accounts.orderBy('order').toArray(),
+    db.transfers.orderBy('date').toArray(),
+    db.recurring.toArray(),
   ]);
   return {
     app: 'personal-finance',
@@ -26,9 +29,15 @@ export async function buildBackup(settings?: Partial<Settings>): Promise<BackupF
     schemaVersion: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
-    data: { transactions, categories, budgets, initialBalance },
+    // initialBalance: v3 dan boshlab hisoblarda saqlanadi
+    data: { transactions, categories, budgets, initialBalance: 0, accounts, transfers, recurring },
     settings,
   };
+}
+
+/** Zaxira olingan vaqtni eslab qolish (zaxira eslatmasi uchun) */
+export async function markBackupDone(): Promise<void> {
+  await setMeta(META_LAST_BACKUP, Date.now());
 }
 
 export async function buildEncryptedBackup(settings: Partial<Settings>, password: string): Promise<EncryptedBackupFile> {
@@ -53,8 +62,9 @@ export function transactionsToCsv(
   txs: Transaction[],
   categories: Map<string, Category>,
   currency: keyof typeof CURRENCIES,
+  accounts?: Map<string, Account>,
 ): string {
-  const header = ['Sana', 'Turi', 'Kategoriya', 'Summa', 'Valyuta', 'To‘lov turi', 'Izoh', 'ID'];
+  const header = ['Sana', 'Turi', 'Kategoriya', 'Summa', 'Valyuta', 'Hisob', 'Izoh', 'ID'];
   const rows = txs
     .slice()
     .sort((a, b) => (a.date === b.date ? a.createdAt - b.createdAt : a.date < b.date ? -1 : 1))
@@ -65,13 +75,13 @@ export function transactionsToCsv(
         csvCell(categories.get(t.categoryId)?.name ?? 'Noma’lum'),
         (t.type === 'expense' ? '-' : '') + minorToDecimalString(t.amount),
         currency,
-        PAYMENT_LABEL[t.paymentMethod] ?? '',
+        csvCell(accounts?.get(t.accountId)?.name ?? PAYMENT_LABEL[t.paymentMethod] ?? ''),
         csvCell(t.note ?? ''),
         t.id,
       ].join(','),
     );
   // BOM — Excel UTF-8 ni to‘g‘ri o‘qishi uchun
-  return '﻿' + [header.join(','), ...rows].join('\r\n');
+  return '\uFEFF' + [header.join(','), ...rows].join('\r\n');
 }
 
 // ───────────────────────── Import: tekshirish ─────────────────────────
@@ -80,7 +90,7 @@ export class ImportError extends Error {}
 
 export interface ParsedBackup {
   backup: BackupFile;
-  stats: { transactions: number; categories: number; budgets: number; skipped: number };
+  stats: { transactions: number; categories: number; budgets: number; accounts: number; skipped: number };
   warnings: string[];
 }
 
@@ -146,11 +156,71 @@ function vTransaction(x: unknown): Transaction | null {
     type: x.type,
     amount: x.amount,
     categoryId: x.categoryId,
+    // Eski zaxiralarda hisob yo‘q — to‘lov turiga qarab bog‘lanadi
+    accountId: isStr(x.accountId) && ID_RE.test(x.accountId) ? x.accountId : pm === 'cash' ? DEFAULT_ACCOUNT_IDS.cash : DEFAULT_ACCOUNT_IDS.card,
     date: x.date,
     note: cleanText(x.note ?? '', NOTE_MAX),
     paymentMethod: pm,
     createdAt: isInt(x.createdAt) ? x.createdAt : now,
     updatedAt: isInt(x.updatedAt) ? x.updatedAt : isInt(x.createdAt) ? x.createdAt : now,
+  };
+}
+
+function vAccount(x: unknown): Account | null {
+  if (!isObj(x) || !isStr(x.id) || !ID_RE.test(x.id)) return null;
+  const name = cleanText(x.name, ACCOUNT_NAME_MAX);
+  if (!name) return null;
+  const now = Date.now();
+  return {
+    id: x.id,
+    name,
+    kind: ACCOUNT_KINDS.some((k) => k.value === x.kind) ? (x.kind as Account['kind']) : 'other',
+    icon: isStr(x.icon) ? cleanText(x.icon, 32) || 'wallet' : 'wallet',
+    color: isStr(x.color) && /^#[0-9a-fA-F]{6}$/.test(x.color) ? x.color : '#64748b',
+    initialBalance: isInt(x.initialBalance) && Math.abs(x.initialBalance) <= MAX_MINOR ? x.initialBalance : 0,
+    order: isInt(x.order) ? x.order : 0,
+    createdAt: isInt(x.createdAt) ? x.createdAt : now,
+    updatedAt: isInt(x.updatedAt) ? x.updatedAt : now,
+  };
+}
+
+function vTransfer(x: unknown): Transfer | null {
+  if (!isObj(x) || !isStr(x.id) || !ID_RE.test(x.id)) return null;
+  if (!isStr(x.fromId) || !ID_RE.test(x.fromId) || !isStr(x.toId) || !ID_RE.test(x.toId) || x.fromId === x.toId) return null;
+  if (!isInt(x.amount) || x.amount <= 0 || x.amount > MAX_MINOR || !isValidISODate(x.date)) return null;
+  const now = Date.now();
+  return {
+    id: x.id,
+    fromId: x.fromId,
+    toId: x.toId,
+    amount: x.amount,
+    date: x.date,
+    note: cleanText(x.note ?? '', NOTE_MAX),
+    createdAt: isInt(x.createdAt) ? x.createdAt : now,
+    updatedAt: isInt(x.updatedAt) ? x.updatedAt : now,
+  };
+}
+
+function vRecurring(x: unknown): Recurring | null {
+  if (!isObj(x) || !isStr(x.id) || !ID_RE.test(x.id)) return null;
+  if (x.type !== 'income' && x.type !== 'expense') return null;
+  if (x.freq !== 'weekly' && x.freq !== 'monthly') return null;
+  if (!isInt(x.amount) || x.amount <= 0 || x.amount > MAX_MINOR || !isValidISODate(x.startDate)) return null;
+  if (!isStr(x.categoryId) || !ID_RE.test(x.categoryId) || !isStr(x.accountId) || !ID_RE.test(x.accountId)) return null;
+  const now = Date.now();
+  return {
+    id: x.id,
+    type: x.type,
+    amount: x.amount,
+    categoryId: x.categoryId,
+    accountId: x.accountId,
+    note: cleanText(x.note ?? '', NOTE_MAX),
+    freq: x.freq,
+    startDate: x.startDate,
+    lastDate: isValidISODate(x.lastDate) ? x.lastDate : null,
+    active: x.active !== false,
+    createdAt: isInt(x.createdAt) ? x.createdAt : now,
+    updatedAt: isInt(x.updatedAt) ? x.updatedAt : now,
   };
 }
 
@@ -233,9 +303,39 @@ export function validateBackup(raw: unknown): ParsedBackup {
     budgetCats.add(v.categoryId);
     budgets.push(v);
   }
-  if (skipped) warnings.push(`${skipped} ta noto‘g‘ri yoki takroriy yozuv o‘tkazib yuboriladi.`);
-
   const initialBalance = isInt(data.initialBalance) && Math.abs(data.initialBalance) <= MAX_MINOR ? data.initialBalance : 0;
+
+  // Hisoblar: eski (v1–v2) zaxiralarda yo‘q — standart hisoblar yaratiladi, umumiy boshlang‘ich balans “Karta”ga
+  let accounts: Account[] = [];
+  const accIds = new Set<string>();
+  if (Array.isArray(data.accounts)) {
+    for (const a of data.accounts) {
+      const v = vAccount(a);
+      if (!v || accIds.has(v.id)) { skipped++; continue; }
+      accIds.add(v.id);
+      accounts.push(v);
+    }
+  }
+  const legacy = !Array.isArray(data.accounts) || accounts.length === 0;
+  if (legacy) {
+    accounts = defaultAccounts();
+    accounts[0].initialBalance = initialBalance;
+    accounts.forEach((a) => accIds.add(a.id));
+  }
+
+  const transfers: Transfer[] = [];
+  for (const t of Array.isArray(data.transfers) ? data.transfers : []) {
+    const v = vTransfer(t);
+    if (!v || !accIds.has(v.fromId) || !accIds.has(v.toId)) { skipped++; continue; }
+    transfers.push(v);
+  }
+  const recurring: Recurring[] = [];
+  for (const r of Array.isArray(data.recurring) ? data.recurring : []) {
+    const v = vRecurring(r);
+    if (!v || (catType.has(v.categoryId) && catType.get(v.categoryId) !== v.type)) { skipped++; continue; }
+    recurring.push(v);
+  }
+  if (skipped) warnings.push(`${skipped} ta noto‘g‘ri yoki takroriy yozuv o‘tkazib yuboriladi.`);
 
   return {
     backup: {
@@ -244,10 +344,10 @@ export function validateBackup(raw: unknown): ParsedBackup {
       schemaVersion: isInt(raw.schemaVersion) ? raw.schemaVersion : SCHEMA_VERSION,
       exportedAt: isStr(raw.exportedAt) ? raw.exportedAt : '',
       appVersion: isStr(raw.appVersion) ? raw.appVersion : '',
-      data: { transactions, categories, budgets, initialBalance },
+      data: { transactions, categories, budgets, initialBalance, accounts, transfers, recurring },
       settings: vSettings(raw.settings),
     },
-    stats: { transactions: transactions.length, categories: categories.length, budgets: budgets.length, skipped },
+    stats: { transactions: transactions.length, categories: categories.length, budgets: budgets.length, accounts: accounts.length, skipped },
     warnings,
   };
 }
@@ -262,18 +362,47 @@ export type ImportMode = 'replace' | 'merge';
  *  - merge: bir xil ID dagi yozuvlardan yangirog‘i qoladi; bir xil nomli kategoriyalar birlashtiriladi.
  */
 export async function applyBackup(parsed: ParsedBackup, mode: ImportMode): Promise<void> {
-  const { transactions, categories, budgets, initialBalance } = parsed.backup.data;
+  const { transactions, categories, budgets } = parsed.backup.data;
+  const accounts = parsed.backup.data.accounts ?? [];
+  const transfers = parsed.backup.data.transfers ?? [];
+  const recurring = parsed.backup.data.recurring ?? [];
 
-  await db.transaction('rw', [db.transactions, db.categories, db.budgets, db.meta], async () => {
+  await db.transaction('rw', [db.transactions, db.categories, db.budgets, db.meta, db.accounts, db.transfers, db.recurring], async () => {
     const idMap = new Map<string, string>();
+    const accMap = new Map<string, string>();
 
     if (mode === 'replace') {
       await db.transactions.clear();
       await db.budgets.clear();
       await db.categories.clear();
+      await db.transfers.clear();
+      await db.recurring.clear();
+      await db.accounts.clear();
       await db.categories.bulkPut(categories);
-      await db.meta.put({ key: META_INITIAL_BALANCE, value: initialBalance, updatedAt: Date.now() });
+      await db.accounts.bulkPut(accounts.length ? accounts : defaultAccounts());
+      await db.meta.delete(META_INITIAL_BALANCE);
     } else {
+      // Hisoblar: bir xil ID — yangirog‘i; bir xil nom — birlashtiriladi
+      const existingAcc = await db.accounts.toArray();
+      const accById = new Map(existingAcc.map((a) => [a.id, a]));
+      const accByName = new Map(existingAcc.map((a) => [a.name.toLocaleLowerCase(), a]));
+      let aOrder = existingAcc.reduce((m, a) => Math.max(m, a.order), 0);
+      const accPut: Account[] = [];
+      for (const a of accounts) {
+        const same = accById.get(a.id);
+        if (same) {
+          if (a.updatedAt > same.updatedAt) accPut.push({ ...a, order: same.order });
+          continue;
+        }
+        const dup = accByName.get(a.name.toLocaleLowerCase());
+        if (dup) {
+          accMap.set(a.id, dup.id);
+          continue;
+        }
+        accPut.push({ ...a, order: ++aOrder });
+      }
+      await db.accounts.bulkPut(accPut);
+
       const existing = await db.categories.toArray();
       const byId = new Map(existing.map((c) => [c.id, c]));
       const byName = new Map(existing.map((c) => [`${c.type}:${c.name.toLocaleLowerCase()}`, c]));
@@ -320,12 +449,34 @@ export async function applyBackup(parsed: ParsedBackup, mode: ImportMode): Promi
       return c.id;
     };
 
+    // Hisobi topilmagan yozuvlar birinchi hisobga
+    const allAcc = await db.accounts.orderBy('order').toArray();
+    const accIdSet = new Set(allAcc.map((a) => a.id));
+    const fixAcc = (id: string) => {
+      const mapped = accMap.get(id) ?? id;
+      return accIdSet.has(mapped) ? mapped : allAcc[0]?.id ?? DEFAULT_ACCOUNT_IDS.card;
+    };
+
     const fixedTx: Transaction[] = [];
     for (const t of transactions) {
       let categoryId = idMap.get(t.categoryId) ?? t.categoryId;
       const cat = catById.get(categoryId);
       if (!cat || cat.type !== t.type) categoryId = await ensureFallback(t.type);
-      fixedTx.push({ ...t, categoryId });
+      fixedTx.push({ ...t, categoryId, accountId: fixAcc(t.accountId) });
+    }
+
+    const fixedTr = transfers.map((t) => ({ ...t, fromId: fixAcc(t.fromId), toId: fixAcc(t.toId) })).filter((t) => t.fromId !== t.toId);
+    const fixedRec = recurring
+      .map((r) => ({ ...r, categoryId: idMap.get(r.categoryId) ?? r.categoryId, accountId: fixAcc(r.accountId) }))
+      .filter((r) => catById.get(r.categoryId)?.type === r.type);
+    if (mode === 'replace') {
+      await db.transfers.bulkPut(fixedTr);
+      await db.recurring.bulkPut(fixedRec);
+    } else {
+      const exTr = await db.transfers.bulkGet(fixedTr.map((r) => r.id));
+      await db.transfers.bulkPut(fixedTr.filter((r, i) => !exTr[i] || r.updatedAt > exTr[i]!.updatedAt));
+      const exRec = await db.recurring.bulkGet(fixedRec.map((r) => r.id));
+      await db.recurring.bulkPut(fixedRec.filter((r, i) => !exRec[i] || r.updatedAt > exRec[i]!.updatedAt));
     }
 
     if (mode === 'replace') {

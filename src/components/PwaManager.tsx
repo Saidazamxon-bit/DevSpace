@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { usePwa } from '@/store/pwa';
+import { isStandalone, usePwa } from '@/store/pwa';
 import { toast } from '@/store/ui';
 
 /**
@@ -49,7 +49,9 @@ export function PwaManager() {
 
   useEffect(() => {
     usePwa.getState().set({ offlineReady });
-    if (offlineReady) {
+    // Tanishtiruv sahifasida (hali ilova ochilmagan) bu xabar ortiqcha
+    const inApp = isStandalone() || (() => { try { return sessionStorage.getItem('pf-browser') === '1'; } catch { return false; } })();
+    if (offlineReady && inApp) {
       toast.success('Ilova offline ishlashga tayyor', 'Endi internet bo‘lmasa ham foydalanishingiz mumkin.');
       setOfflineReady(false);
     }

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { Category, Transaction } from '@/types';
+import type { Account, Category, Transaction } from '@/types';
 import { CategoryIcon } from './ui/primitives';
 import { useFormat } from '@/hooks/useFormat';
 import { cn } from '@/utils/misc';
@@ -8,10 +8,12 @@ import { cn } from '@/utils/misc';
 export const TransactionItem = memo(function TransactionItem({
   tx,
   category,
+  account,
   onClick,
 }: {
   tx: Transaction;
   category?: Category;
+  account?: Account;
   onClick?: () => void;
 }) {
   const { money } = useFormat();
@@ -25,7 +27,18 @@ export const TransactionItem = memo(function TransactionItem({
       <CategoryIcon icon={category?.icon ?? 'more'} color={category?.color ?? '#94a3b8'} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-medium text-ink">{category?.name ?? 'Noma’lum'}</p>
-        {tx.note && <p className="truncate text-[13px] text-muted">{tx.note}</p>}
+        {(tx.note || account) && (
+          <p className="truncate text-[13px] text-muted">
+            {account && (
+              <span className="mr-1 inline-flex items-center gap-1">
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: account.color }} />
+                {account.name}
+              </span>
+            )}
+            {account && tx.note && '· '}
+            {tx.note}
+          </p>
+        )}
       </div>
       <span className={cn('tabular shrink-0 text-[15px] font-semibold', income ? 'text-income' : 'text-ink')}>
         {money(income ? tx.amount : -tx.amount, { sign: 'always' })}

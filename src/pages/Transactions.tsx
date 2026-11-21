@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, Search, Trash2, X } from 'lucide-react';
-import { useCategories, useTransactions } from '@/hooks/useData';
+import { useAccounts, useCategories, useTransactions } from '@/hooks/useData';
 import { useFormat } from '@/hooks/useFormat';
 import { useTxForm, confirmDialog, toast } from '@/store/ui';
 import { useSettings } from '@/store/settings';
@@ -23,6 +23,7 @@ const PAGE = 50;
 export default function Transactions() {
   const txs = useTransactions();
   const { list: categories, map: catMap } = useCategories();
+  const { map: accMap } = useAccounts();
   const { money, day } = useFormat();
   const currency = useSettings((s) => s.currency);
   const numberFormat = useSettings((s) => s.numberFormat);
@@ -32,12 +33,13 @@ export default function Transactions() {
 
   // Davr bosh ekrandagidan boshlanadi; kategoriya orqali kelinganda ham shu davr
   const home = usePeriodStore();
-  const [preset, setPreset] = useState<PeriodPreset>(params.get('search') ? 'all' : home.preset);
+  const [preset, setPreset] = useState<PeriodPreset>(params.get('search') || params.get('period') === 'all' ? 'all' : home.preset);
   const [offset, setOffset] = useState(home.offset);
   const [custom, setCustom] = useState<DateRange>(home.custom);
   const range = useMemo(() => periodRange(preset, offset, custom), [preset, offset, custom]);
 
   const categoryId = params.get('category') ?? 'all';
+  const accountId = params.get('account') ?? 'all';
   const [type, setType] = useState<'all' | TxType>('all');
   const [q, setQ] = useState('');
   const dq = useDeferredValue(q);
@@ -46,7 +48,7 @@ export default function Transactions() {
   useEffect(() => {
     if (params.get('search')) searchRef.current?.focus();
   }, [params]);
-  useEffect(() => setLimit(PAGE), [range.from, range.to, categoryId, type, dq]);
+  useEffect(() => setLimit(PAGE), [range.from, range.to, categoryId, accountId, type, dq]);
 
   const setCategory = (id: string) => {
     const next = new URLSearchParams(params);
@@ -63,6 +65,7 @@ export default function Transactions() {
     return txs.filter((t) => {
       if (t.date < range.from || t.date > range.to) return false;
       if (categoryId !== 'all' && t.categoryId !== categoryId) return false;
+      if (accountId !== 'all' && t.accountId !== accountId) return false;
       if (type !== 'all' && t.type !== type) return false;
       if (nq) {
         const hay = normalizeSearch(`${t.note} ${catMap.get(t.categoryId)?.name ?? ''}`);
@@ -71,7 +74,7 @@ export default function Transactions() {
       }
       return true;
     });
-  }, [txs, range.from, range.to, categoryId, type, dq, catMap]);
+  }, [txs, range.from, range.to, categoryId, accountId, type, dq, catMap]);
 
   const totals = useMemo(() => computeTotals(filtered ?? []), [filtered]);
   const visible = filtered?.slice(0, limit) ?? [];
@@ -103,18 +106,20 @@ export default function Transactions() {
 
   function exportCsv() {
     if (!filtered?.length) return toast.info('Eksport uchun yozuvlar yo‘q');
-    const csv = transactionsToCsv(filtered, catMap, currency);
+    const csv = transactionsToCsv(filtered, catMap, currency, accMap);
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), backupFilename('csv', 'tranzaksiyalar'));
     toast.success('CSV fayl yuklab olindi', `${filtered.length} ta tranzaksiya`);
   }
 
   const cat = categoryId !== 'all' ? catMap.get(categoryId) : undefined;
+  const acc = accountId !== 'all' ? accMap.get(accountId) : undefined;
   const catOptions = (categories ?? []).filter((c) => type === 'all' || c.type === type);
 
   return (
     <div className="pb-10">
       <PageHeader
-        title={cat ? cat.name : 'Tranzaksiyalar'}
+        title={cat ? cat.name : acc ? acc.name : 'Tranzaksiyalar'}
+        info="transactions"
         subtitle={filtered ? `${filtered.length} ta yozuv` : undefined}
         actions={
           <button className="icon-btn" onClick={exportCsv} aria-label="CSV ga eksport" title="CSV ga eksport">
@@ -187,6 +192,22 @@ export default function Transactions() {
               ))}
             </select>
           )}
+          {acc && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = new URLSearchParams(params);
+                next.delete('account');
+                setParams(next, { replace: true });
+              }}
+              className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold text-white"
+              style={{ background: acc.color }}
+              aria-label={`${acc.name} filtrini olib tashlash`}
+            >
+              {acc.name}
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {filtered && filtered.length > 0 && (
@@ -221,7 +242,7 @@ export default function Transactions() {
                   {g.items.map((t) => (
                     <div key={t.id} className="group flex items-center">
                       <div className="min-w-0 flex-1">
-                        <TransactionItem tx={t} category={catMap.get(t.categoryId)} onClick={() => openEdit(t)} />
+                        <TransactionItem tx={t} category={catMap.get(t.categoryId)} account={accMap.get(t.accountId)} onClick={() => openEdit(t)} />
                       </div>
                       <button
                         type="button"

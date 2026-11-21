@@ -7,8 +7,13 @@ Shaxsiy moliyani boshqarish uchun **offline ishlaydigan** web-ilova (PWA). Darom
 Ilova bitta asosiy ekranga qurilgan — ochishingiz bilan pulingiz qayerga ketayotganini ko‘rasiz:
 
 - **Bosh ekran** — davr tanlash (Bugun, Kecha, Shu hafta, Shu oy, Maxsus va ‹ › bilan oldingi/keyingi davr), markazda katta donut grafik: xarajat kategoriyalari ulushi, markazda daromad, xarajat va qoldiq. Atrofidagi kategoriya ikonkasiga bosilsa — shu kategoriyaga tez xarajat qo‘shiladi; segmentga bosilsa — kategoriya ma’lumoti chiqadi.
-- **Balans paneli** va ixcham **kategoriyalar ro‘yxati** (ikonka, nom, tranzaksiyalar soni, jami summa).
-- Pastda ikkita katta tugma: qizil **−** xarajat, yashil **+** daromad. Telefonda summa ilovaning o‘z raqamli klaviaturasi bilan kiritiladi.
+- **Eng tepada jami mablag‘** — bosilsa **Hisoblar** ochiladi: Karta, Naqd, Jamg‘arma va o‘zingiz qo‘shgan hisoblar, har birining qoldig‘i, hisoblar orasida **o‘tkazma**. Qoldiq farq qilsa — “Hozirgi qoldiq”ni kiriting, ilova o‘zi to‘g‘rilaydi.
+- **Doimiy to‘lovlar** — qo‘shayotganda “Har oy” yoki “Har hafta”ni tanlang; vaqti kelganda bosh ekranda bir bosishda tasdiqlanadi yoki o‘tkazib yuboriladi.
+- **Zaxira eslatmasi** — haftada bir marta zaxira nusxa olishni eslatadi (ma’lumot faqat qurilmada).
+- Ixcham **kategoriyalar ro‘yxati** (ikonka, nom, tranzaksiyalar soni, jami summa).
+- Bo‘limlar yonidagi **ⓘ** tugmasi — bo‘lim nima vazifa bajarishini tushuntiradi.
+- **Tanishtiruv sahifasi** — sayt brauzerda ochilganda: “Ilovani o‘rnatish” (Chrome/Edge/Android’da brauzer ruxsat oynasi, iPhone’da qadamma-qadam yo‘riqnoma). O‘rnatilgan ilova to‘g‘ridan-to‘g‘ri ochiladi.
+- Pastda ikkita katta tugma: qizil **−** xarajat, yashil **+** daromad. Telefonda summa ilovaning o‘z raqamli klaviaturasi bilan kiritiladi, `+` va `−` bilan hisoblash mumkin (masalan, `45 000+12 000`).
 - **Tranzaksiyalar** — menyu, qidiruv yoki kategoriyaga bosib ochiladi: ko‘rish, tahrirlash, o‘chirish (“Qaytarish” bilan), davr/kategoriya/tur bo‘yicha filtr, qidiruv, CSV eksport.
 - **Kategoriyalar** — yaratish, nom, ikonka va rangni o‘zgartirish, o‘chirish (ishlatilgan bo‘lsa, yozuvlar boshqa kategoriyaga ko‘chiriladi).
 - **Budjetlar** — kategoriya bo‘yicha oylik limit, limitga yaqinlashganda ogohlantirish.
@@ -53,7 +58,7 @@ Ilova nisbiy yo‘llar (`base: './'`) va hash-routing ishlatadi, shuning uchun i
 ```
 src/
   components/   UI komponentlar (ui/, charts/, settings/, forma va ro‘yxat elementlari)
-  pages/        Home (bosh ekran), Transactions, Categories, Budgets, Settings
+  pages/        Landing (tanishtiruv), Home (bosh ekran), Accounts, Transactions, Recurring, Categories, Budgets, Settings
   layouts/      Sodda layout va chapdan ochiladigan menyu
   hooks/        Ma’lumotlarni jonli o‘qish (useLiveQuery), mavzu, format, onlayn holat
   services/     Ma’lumotlar qatlami: finance (CRUD + validatsiya), backup, crypto, security

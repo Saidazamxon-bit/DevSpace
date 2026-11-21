@@ -46,7 +46,7 @@ export function DonutRing({
   const n = icons.length;
 
   return (
-    <div className="relative mx-auto aspect-square w-full select-none" style={{ maxWidth: 'min(400px, 46dvh)', containerType: 'inline-size' }}>
+    <div className="relative mx-auto aspect-square w-full select-none" style={{ maxWidth: 'min(400px, 42dvh)', containerType: 'inline-size' }}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" role="img" aria-label="Xarajatlar kategoriyalar bo‘yicha">
         {/* Fon halqasi */}
         <circle cx="50" cy="50" r={R} fill="none" stroke="rgb(var(--surface-2))" strokeWidth={W} />

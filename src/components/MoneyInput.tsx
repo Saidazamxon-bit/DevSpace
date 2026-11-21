@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useSettings } from '@/store/settings';
 import { CURRENCIES, parseMoney, minorToInput } from '@/utils/money';
-import { applyPadKey, decimalSeparator, type PadKey } from '@/utils/keypad';
+import { applyPadKey, decimalSeparator, evaluateToString, hasOperator, type PadKey } from '@/utils/keypad';
 import { cn } from '@/utils/misc';
 import { NumPad } from './NumPad';
 
@@ -90,15 +90,17 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
           data-autofocus={autoFocus && !touch ? '' : undefined}
           placeholder={placeholder}
           value={value}
-          maxLength={24}
+          maxLength={60}
           onClick={() => touch && setPadOpen(true)}
           onFocus={() => touch && setPadOpen(true)}
           onChange={(e) => {
-            const allowed = allowNegative ? /[^\d\s.,\-−]/g : /[^\d\s.,]/g;
-            onChange(e.target.value.replace(allowed, ''));
+            if (allowNegative) return onChange(e.target.value.replace(/[^\d\s.,\-−]/g, ''));
+            // Kompyuterda ham hisoblash mumkin: 45000+12000-5000
+            onChange(e.target.value.replace(/[^\d\s.,+\-−]/g, '').replace(/-/g, '−').replace(/^[+−]+/, ''));
           }}
           onBlur={() => {
             if (touch) return;
+            if (!allowNegative && hasOperator(value)) return onChange(evaluateToString(value.replace(/[+−]\s*$/, ''), numberFormat));
             const neg = allowNegative && /^\s*[-−]/.test(value);
             const r = parseMoney(neg ? value.replace(/[-−]/g, '') : value);
             if (r.ok) onChange((neg ? '−' : '') + minorToInput(r.value, numberFormat));
@@ -120,7 +122,13 @@ export const MoneyInput = forwardRef<HTMLInputElement, Props>(function MoneyInpu
         )}
       </div>
       {touch && padOpen && (
-        <NumPad onKey={onKey} onDone={() => setPadOpen(false)} decimal={decimalSeparator(numberFormat)} allowNegative={allowNegative} />
+        <NumPad
+          onKey={onKey}
+          onDone={() => setPadOpen(false)}
+          decimal={decimalSeparator(numberFormat)}
+          allowNegative={allowNegative}
+          hasExpression={!allowNegative && hasOperator(value) && !/[+−]$/.test(value)}
+        />
       )}
     </div>
   );

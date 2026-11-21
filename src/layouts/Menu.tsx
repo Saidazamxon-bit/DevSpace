@@ -5,6 +5,7 @@ import { NAV_ITEMS } from './nav';
 import { useLock, useNav } from '@/store/ui';
 import { useSecurityConfig } from '@/hooks/useData';
 import { Logo } from '@/components/Logo';
+import { InfoButton } from '@/components/InfoButton';
 import { cn } from '@/utils/misc';
 
 declare const __APP_VERSION__: string;
@@ -54,18 +55,20 @@ export function MenuDrawer() {
           </button>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Asosiy menyu">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                cn('flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium', isActive ? 'bg-accent/10 text-accent' : 'text-ink hover:bg-surface-2')
-              }
-            >
-              <Icon size={20} />
-              {label}
-            </NavLink>
+          {NAV_ITEMS.map(({ to, label, icon: Icon, info }) => (
+            <div key={to} className="relative">
+              <NavLink
+                to={to}
+                end={to === '/'}
+                className={({ isActive }) =>
+                  cn('flex h-12 items-center gap-3 rounded-xl px-3 pr-12 text-[15px] font-medium', isActive ? 'bg-accent/10 text-accent' : 'text-ink hover:bg-surface-2')
+                }
+              >
+                <Icon size={20} />
+                {label}
+              </NavLink>
+              {info && <InfoButton topic={info} className="absolute right-3 top-1/2 -translate-y-1/2 bg-surface" />}
+            </div>
           ))}
           <NavLink to="/settings#data" className="flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium text-ink hover:bg-surface-2">
             <DatabaseBackup size={20} />

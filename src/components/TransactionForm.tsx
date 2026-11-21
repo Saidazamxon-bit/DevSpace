@@ -4,21 +4,24 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { MoneyInput } from './MoneyInput';
 import { useTxForm, toast, confirmDialog, errorMessage } from '@/store/ui';
-import { useCategories } from '@/hooks/useData';
+import { useAccounts, useCategories } from '@/hooks/useData';
 import { useSettings } from '@/store/settings';
 import { useFormat } from '@/hooks/useFormat';
-import { addTransaction, deleteTransaction, restoreTransaction, updateTransaction, NOTE_MAX } from '@/services/finance';
+import { addRecurring, addTransaction, deleteTransaction, restoreTransaction, updateTransaction, NOTE_MAX } from '@/services/finance';
 import { checkBudgetAfterExpense } from '@/services/budgetAlerts';
-import type { PaymentMethod, TxType } from '@/types';
+import type { RecurringFreq, TxType } from '@/types';
 import { isValidISODate, todayISO, addDays } from '@/utils/date';
-import { minorToInput, parseMoney } from '@/utils/money';
+import { minorToInput } from '@/utils/money';
+import { parseAmountInput } from '@/utils/keypad';
+
 import { cn } from '@/utils/misc';
 import { getIcon } from '@/utils/icons';
 
 /** Daromad / xarajat qo‘shish va tahrirlash — pastdan chiqadigan ixcham panel */
 export function TransactionForm() {
-  const { open, type: initialType, categoryId: presetCategory, editing, close } = useTxForm();
+  const { open, type: initialType, categoryId: presetCategory, repeat: presetRepeat, editing, close } = useTxForm();
   const { list: categories } = useCategories();
+  const { list: accounts } = useAccounts();
   const numberFormat = useSettings((s) => s.numberFormat);
   const { money } = useFormat();
 
@@ -27,7 +30,8 @@ export function TransactionForm() {
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(todayISO());
   const [note, setNote] = useState('');
-  const [payment, setPayment] = useState<PaymentMethod>('cash');
+  const [accountId, setAccountId] = useState('');
+  const [repeat, setRepeat] = useState<'none' | RecurringFreq>('none');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -42,16 +46,23 @@ export function TransactionForm() {
       setCategoryId(editing.categoryId);
       setDate(editing.date);
       setNote(editing.note);
-      setPayment(editing.paymentMethod);
+      setAccountId(editing.accountId);
+      setRepeat('none');
     } else {
       setType(initialType);
       setAmount('');
       setCategoryId(presetCategory ?? '');
       setDate(todayISO());
       setNote('');
-      setPayment('cash');
+      setAccountId(lastAccount());
+      setRepeat(presetRepeat ?? 'none');
     }
-  }, [open, editing, initialType, presetCategory, numberFormat]);
+  }, [open, editing, initialType, presetCategory, presetRepeat, numberFormat]);
+
+  // Hisob topilmasa (o‘chirilgan yoki birinchi ochilish) — birinchi hisob
+  useEffect(() => {
+    if (accounts?.length && !accounts.some((a) => a.id === accountId)) setAccountId(accounts[0].id);
+  }, [accounts, accountId]);
 
   const options = useMemo(() => (categories ?? []).filter((c) => c.type === type), [categories, type]);
 
@@ -59,7 +70,7 @@ export function TransactionForm() {
     if (categoryId && categories && !options.some((c) => c.id === categoryId)) setCategoryId('');
   }, [options, categoryId, categories]);
 
-  const parsed = parseMoney(amount);
+  const parsed = parseAmountInput(amount, numberFormat);
   const isIncome = type === 'income';
   const today = todayISO();
   const yesterday = addDays(today, -1);
@@ -69,6 +80,7 @@ export function TransactionForm() {
     const errs: Record<string, string> = {};
     if (!parsed.ok) errs.amount = parsed.error;
     if (!categoryId) errs.category = 'Kategoriyani tanlang';
+    if (!accountId) errs.account = 'Hisobni tanlang';
     if (!isValidISODate(date)) errs.date = 'Sanani to‘g‘ri kiriting';
     else if (date > addDays(today, 366)) errs.date = 'Sana bir yildan uzoq kelajakda bo‘lmasligi kerak';
     setErrors(errs);
@@ -78,13 +90,17 @@ export function TransactionForm() {
     }
     setSaving(true);
     try {
-      const input = { type, amount: parsed.value, categoryId, date, note, paymentMethod: payment };
+      const input = { type, amount: parsed.value, categoryId, accountId, date, note, ...(editing ? { paymentMethod: editing.paymentMethod } : {}) };
       if (editing) {
         await updateTransaction(editing.id, input);
         toast.success('O‘zgarishlar saqlandi');
       } else {
         await addTransaction(input);
-        toast.success(isIncome ? 'Daromad qo‘shildi' : 'Xarajat qo‘shildi', money(parsed.value));
+        if (repeat !== 'none') {
+          await addRecurring({ type, amount: parsed.value, categoryId, accountId, note, freq: repeat, startDate: date, lastDate: date });
+        }
+        toast.success(isIncome ? 'Daromad qo‘shildi' : 'Xarajat qo‘shildi', repeat === 'none' ? money(parsed.value) : `${money(parsed.value)} · ${repeat === 'monthly' ? 'har oy' : 'har hafta'} eslatiladi`);
+        rememberAccount(accountId);
       }
       if (type === 'expense') void checkBudgetAfterExpense(categoryId, date);
       close();
@@ -211,6 +227,33 @@ export function TransactionForm() {
           {errors.category && <p className="mt-1.5 text-[13px] text-expense" role="alert">{errors.category}</p>}
         </div>
 
+        {accounts && accounts.length > 1 && (
+          <div>
+            <span className="label" id="acc-label">{isIncome ? 'Qaysi hisobga' : 'Qaysi hisobdan'}</span>
+            <div role="radiogroup" aria-labelledby="acc-label" className="flex flex-wrap gap-2">
+              {accounts.map((a) => {
+                const Icon = getIcon(a.icon);
+                const active = a.id === accountId;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setAccountId(a.id)}
+                    className={cn('inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors', active ? 'border-transparent text-white' : 'border-line text-muted hover:text-ink')}
+                    style={active ? { background: a.color } : undefined}
+                  >
+                    <Icon size={16} />
+                    {a.name}
+                  </button>
+                );
+              })}
+            </div>
+            {errors.account && <p className="mt-1.5 text-[13px] text-expense" role="alert">{errors.account}</p>}
+          </div>
+        )}
+
         <div>
           <span className="label">Sana</span>
           <div role="radiogroup" aria-label="Sana" className="flex items-center gap-2">
@@ -229,6 +272,33 @@ export function TransactionForm() {
           {errors.date && <p className="mt-1.5 text-[13px] text-expense" role="alert">{errors.date}</p>}
         </div>
 
+        {!editing && (
+          <div>
+            <span className="label" id="rep-label">Takrorlash</span>
+            <div role="radiogroup" aria-labelledby="rep-label" className="grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1">
+              {([
+                ['none', 'Bir martalik'],
+                ['weekly', 'Har hafta'],
+                ['monthly', 'Har oy'],
+              ] as const).map(([v, l]) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={repeat === v}
+                  onClick={() => setRepeat(v)}
+                  className={cn('h-9 rounded-lg text-[13px] font-semibold', repeat === v ? 'bg-surface text-ink shadow-card' : 'text-muted')}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            {repeat !== 'none' && (
+              <p className="mt-1.5 text-[12px] text-muted">Keyingi safar vaqti kelganda bosh ekranda bir bosishda tasdiqlaysiz.</p>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="label" htmlFor="tx-note">Izoh (ixtiyoriy)</label>
           <input id="tx-note" className="input" placeholder="Masalan: Korzinkadan xarid" maxLength={NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -241,4 +311,20 @@ export function TransactionForm() {
 function CategoryIconGlyph({ icon }: { icon: string }) {
   const Icon = getIcon(icon);
   return <Icon size={22} strokeWidth={2.1} />;
+}
+
+const ACC_KEY = 'pf-last-account';
+function lastAccount(): string {
+  try {
+    return localStorage.getItem(ACC_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+function rememberAccount(id: string) {
+  try {
+    localStorage.setItem(ACC_KEY, id);
+  } catch {
+    /* */
+  }
 }

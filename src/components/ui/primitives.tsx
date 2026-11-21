@@ -1,6 +1,8 @@
 import { type ReactNode, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { InfoButton } from '../InfoButton';
+import type { InfoKey } from '@/utils/infoTexts';
 import { cn } from '@/utils/misc';
 import { getIcon } from '@/utils/icons';
 
@@ -135,7 +137,7 @@ export function Field({ label, error, hint, children, htmlFor }: { label: string
 }
 
 /** Ichki sahifalar sarlavhasi: ← orqaga (bosh ekranga), nom va amallar */
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ title, subtitle, actions, info }: { title: string; subtitle?: ReactNode; actions?: ReactNode; info?: InfoKey }) {
   return (
     <header className="sticky top-0 z-30 -mx-4 mb-4 bg-bg/85 px-3 pt-[var(--safe-top)] backdrop-blur-xl sm:-mx-6 sm:px-5">
       <div className="flex min-h-14 items-center gap-1">
@@ -143,7 +145,10 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
           <ArrowLeft size={21} />
         </Link>
         <div className="min-w-0 flex-1 pl-1">
-          <h1 className="truncate text-[18px] font-bold tracking-tight text-ink">{title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="truncate text-[18px] font-bold tracking-tight text-ink">{title}</h1>
+            {info && <InfoButton topic={info} />}
+          </div>
           {subtitle && <p className="truncate text-[12px] text-muted -mt-0.5">{subtitle}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}

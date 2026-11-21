@@ -1,4 +1,4 @@
-import type { Category } from '@/types';
+import type { Account, Category } from '@/types';
 
 type Seed = Pick<Category, 'id' | 'name' | 'type' | 'icon' | 'color'>;
 
@@ -30,4 +30,15 @@ const SEEDS: Seed[] = [
 
 export function defaultCategories(now = Date.now()): Category[] {
   return SEEDS.map((s, i) => ({ ...s, order: i, isDefault: true, createdAt: now, updatedAt: now }));
+}
+
+/** Standart hisoblar (barqaror ID — zaxiralarni birlashtirishda dublikat bo‘lmasligi uchun) */
+export const DEFAULT_ACCOUNT_IDS = { card: 'acc-card', cash: 'acc-cash', savings: 'acc-savings' } as const;
+
+export function defaultAccounts(now = Date.now()): Account[] {
+  return [
+    { id: DEFAULT_ACCOUNT_IDS.card, name: 'Karta', kind: 'card', icon: 'credit-card', color: '#2a78d6', initialBalance: 0, order: 0, createdAt: now, updatedAt: now },
+    { id: DEFAULT_ACCOUNT_IDS.cash, name: 'Naqd', kind: 'cash', icon: 'banknote', color: '#1baf7a', initialBalance: 0, order: 1, createdAt: now, updatedAt: now },
+    { id: DEFAULT_ACCOUNT_IDS.savings, name: 'Jamg‘arma', kind: 'savings', icon: 'piggy-bank', color: '#eda100', initialBalance: 0, order: 2, createdAt: now, updatedAt: now },
+  ];
 }

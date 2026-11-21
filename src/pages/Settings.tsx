@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Check, Database, Download, FileJson, FileLock2, FileSpreadsheet, HardDrive, Info, Monitor, Moon, Palette, RefreshCw,
   ShieldCheck, Smartphone, Sun, Trash2, Upload, Wallet, Lock,
@@ -7,10 +7,9 @@ import {
 import { useSettings, DEFAULT_SETTINGS, pickSettings } from '@/store/settings';
 import { usePwa, isIOS, isStandalone } from '@/store/pwa';
 import { confirmDialog, errorMessage, toast } from '@/store/ui';
-import { useCategories, useInitialBalance, useTransactions } from '@/hooks/useData';
-import { useFormat } from '@/hooks/useFormat';
+import { useAccounts, useCategories, useTransactions } from '@/hooks/useData';
 import { useOnline } from '@/hooks/useOnline';
-import { backupFilename, buildBackup, buildEncryptedBackup, transactionsToCsv } from '@/services/backup';
+import { backupFilename, buildBackup, buildEncryptedBackup, markBackupDone, transactionsToCsv } from '@/services/backup';
 import { cryptoAvailable } from '@/services/crypto';
 import { wipeAllData } from '@/services/finance';
 import { getStorageInfo, requestPersistentStorage, SCHEMA_VERSION } from '@/database/db';
@@ -22,7 +21,6 @@ import { PageHeader, Switch } from '@/components/ui/primitives';
 import { ImportDialog } from '@/components/settings/ImportDialog';
 import { PasswordDialog } from '@/components/settings/PasswordDialog';
 import { SecuritySection } from '@/components/settings/SecuritySection';
-import { InitialBalanceModal } from '@/components/InitialBalanceModal';
 
 declare const __APP_VERSION__: string;
 
@@ -73,15 +71,13 @@ function Row({ label, desc, htmlFor, children }: { label: string; desc?: string;
 
 export default function Settings() {
   const s = useSettings();
-  const { money } = useFormat();
-  const initial = useInitialBalance();
+  const { map: accMap } = useAccounts();
   const txs = useTransactions();
   const { map: catMap } = useCategories();
   const online = useOnline();
   const pwa = usePwa();
   const [importOpen, setImportOpen] = useState(false);
   const [encOpen, setEncOpen] = useState(false);
-  const [ibOpen, setIbOpen] = useState(false);
   const [storage, setStorage] = useState<Awaited<ReturnType<typeof getStorageInfo>>>(null);
 
   useEffect(() => {
@@ -98,6 +94,7 @@ export default function Settings() {
     try {
       const data = await buildBackup(pickSettings(s));
       downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), backupFilename('json'));
+      await markBackupDone();
       toast.success('Zaxira yuklab olindi', `${data.data.transactions.length} ta tranzaksiya saqlandi`);
     } catch (e) {
       toast.error('Eksport amalga oshmadi', errorMessage(e));
@@ -108,6 +105,7 @@ export default function Settings() {
     try {
       const data = await buildEncryptedBackup(pickSettings(s), password);
       downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), backupFilename('json', 'shifrlangan'));
+      await markBackupDone();
       toast.success('Shifrlangan zaxira yuklab olindi');
     } catch (e) {
       toast.error('Shifrlab bo‘lmadi', errorMessage(e));
@@ -116,7 +114,7 @@ export default function Settings() {
 
   function exportCsv() {
     if (!txs?.length) return toast.info('Eksport uchun tranzaksiyalar yo‘q');
-    const csv = transactionsToCsv(txs, catMap, s.currency);
+    const csv = transactionsToCsv(txs, catMap, s.currency, accMap);
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), backupFilename('csv', 'tranzaksiyalar'));
     toast.success('CSV fayl yuklab olindi', `${txs.length} ta tranzaksiya`);
   }
@@ -235,11 +233,11 @@ export default function Settings() {
                   {NUMBER_FORMAT_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
               </Row>
-              <Row label="Boshlang‘ich balans" desc="Umumiy balans = boshlang‘ich + daromad − xarajat">
-                <button className="btn btn-outline w-full justify-between" onClick={() => setIbOpen(true)}>
-                  <span className="tabular">{initial === undefined ? '…' : money(initial)}</span>
-                  <span className="text-accent text-[13px]">O‘zgartirish</span>
-                </button>
+              <Row label="Hisoblar va qoldiqlar" desc="Karta, Naqd, Jamg‘arma — har birining qoldig‘i">
+                <Link to="/accounts" className="btn btn-outline w-full justify-between">
+                  <span>Hisoblarni boshqarish</span>
+                  <span className="text-accent text-[13px]">Ochish</span>
+                </Link>
               </Row>
             </div>
           </Section>
@@ -343,7 +341,6 @@ export default function Settings() {
 
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
       <PasswordDialog open={encOpen} onClose={() => setEncOpen(false)} onSubmit={exportEncrypted} />
-      <InitialBalanceModal open={ibOpen} onClose={() => setIbOpen(false)} current={initial ?? 0} />
     </div>
   );
 }

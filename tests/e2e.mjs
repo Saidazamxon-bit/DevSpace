@@ -42,18 +42,32 @@ async function addTx(type, amount, category, note) {
   await page.waitForTimeout(150);
 }
 
-// 1. Birinchi ochilish — bo‘sh holat va bitta bosh ekran
+// 0. Brauzerda birinchi ochilish — tanishtiruv sahifasi
 await page.goto(BASE);
+await page.getByRole('heading', { name: /Pulingizni har kuni/ }).waitFor();
+check(await page.getByTestId('install').isVisible(), 'Brauzerda tanishtiruv sahifasi va “Ilovani o‘rnatish” tugmasi');
+await page.getByTestId('install').click();
+await page.getByRole('dialog', { name: 'Ilovani o‘rnatish' }).waitFor();
+check(true, 'O‘rnatish bosilganda yo‘riqnoma/ruxsat oynasi chiqadi');
+await page.getByRole('button', { name: 'Tushunarli' }).click();
+await page.getByRole('button', { name: 'Brauzerda davom etish' }).click();
+
+// 1. Birinchi ochilish — bo‘sh holat va bitta bosh ekran
 await page.getByText('Hali yozuvlar yo‘q').waitFor();
 check(true, 'Yangi foydalanuvchida bo‘sh holat va yo‘riqnoma ko‘rsatiladi');
 check((await page.locator('[data-cat-icon]').count()) >= 10, 'Donut atrofida kategoriya ikonkalari bor');
 check((await page.locator('aside, nav[aria-label="Pastki menyu"]').count()) === 0, 'Sidebar va pastki menyu yo‘q');
 
-// 2. Boshlang‘ich balans va tranzaksiyalar (− / + tugmalari)
-await page.getByRole('button', { name: /Boshlang‘ich balansni kiriting/ }).click();
-await page.locator('#ib').fill('1 000 000');
+// 2. Hisob qoldig‘i (eng tepadagi summa → Hisoblar) va tranzaksiyalar (− / + tugmalari)
+await page.getByTestId('balance-panel').click();
+await page.getByRole('heading', { name: 'Hisoblar' }).waitFor();
+check((await page.locator('[data-account]').count()) === 3, 'Hisoblar: Karta, Naqd, Jamg‘arma');
+await page.getByRole('button', { name: 'Karta — tahrirlash' }).click();
+await page.locator('#acc-balance').fill('1 000 000');
 await dialog().getByRole('button', { name: 'Saqlash' }).click();
 await page.getByRole('dialog').waitFor({ state: 'detached' });
+await page.getByRole('link', { name: 'Orqaga — bosh ekran' }).click();
+await page.locator('[data-testid=balance]').waitFor();
 await addTx('income', '5000000', 'Ish haqi', 'Noyabr oyligi');
 await addTx('expense', '150000,50', 'Oziq-ovqat', 'Korzinka');
 // Ikonkaga bosish — kategoriya oldindan tanlangan holda tez qo‘shish
@@ -104,6 +118,70 @@ await page.getByRole('link', { name: 'Orqaga — bosh ekran' }).click();
 await page.locator('[data-testid=balance]').waitFor();
 check((await balance()) === '5 800 000 so‘m', `O‘chirishdan keyin balans: ${await balance()}`);
 
+// 4b. Yangi hisob va o‘tkazma
+await page.getByTestId('balance-panel').click();
+await page.getByRole('button', { name: /Yangi hisob/ }).click();
+await page.locator('#acc-name').fill('Humo');
+await page.locator('#acc-balance').fill('300000');
+await dialog().getByRole('button', { name: 'Saqlash' }).click();
+await page.getByText('Hisob qo‘shildi').waitFor();
+await page.getByRole('button', { name: /Hisoblar orasida o‘tkazma/ }).click();
+await dialog().locator('#tr-amount').fill('500000');
+await dialog().getByRole('radiogroup', { name: 'Qayerga' }).getByRole('radio', { name: /Jamg‘arma/ }).click();
+await dialog().getByRole('button', { name: 'O‘tkazish' }).click();
+await page.getByText('O‘tkazma bajarildi').waitFor();
+await page.waitForFunction(() => document.querySelector('[data-testid=acc-balance-acc-savings]')?.textContent?.includes('500'), null, { timeout: 3000 }).catch(() => {});
+check(norm(await page.getByTestId('acc-balance-acc-savings').innerText()) === '500 000 so‘m', `O‘tkazma: Jamg‘arma ${norm(await page.getByTestId('acc-balance-acc-savings').innerText())}`);
+check(norm(await page.getByTestId('accounts-total').innerText()) === '6 100 000 so‘m', `Jami mablag‘ o‘tkazmadan o‘zgarmaydi (+ yangi hisob 300 000): ${norm(await page.getByTestId('accounts-total').innerText())}`);
+await page.locator('[data-info=accounts]').click();
+await page.getByRole('dialog', { name: /Hisoblar nima/ }).waitFor();
+check(true, 'ⓘ — bo‘lim tavsifi ochiladi');
+await page.getByRole('button', { name: 'Tushunarli' }).click();
+await page.getByRole('link', { name: 'Orqaga — bosh ekran' }).click();
+await page.locator('[data-testid=balance]').waitFor();
+check((await balance()) === '6 100 000 so‘m', `Bosh ekranda jami mablag‘: ${await balance()}`);
+
+// 4c. Doimiy to‘lov: “Har oy” bilan qo‘shish, keyingi oy eslatmasi
+await page.getByRole('button', { name: 'Xarajat qo‘shish', exact: true }).click();
+await dialog().locator('#tx-amount').fill('100000');
+await dialog().getByRole('radiogroup', { name: 'Kategoriya' }).getByRole('radio', { name: 'Uy-joy', exact: true }).click();
+await dialog().getByRole('radio', { name: 'Har oy' }).click();
+await dialog().locator('#tx-date').fill(new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10));
+await dialog().locator('#tx-note').fill('Ijara');
+await dialog().getByRole('button', { name: 'Saqlash' }).click();
+await page.getByRole('dialog').waitFor({ state: 'detached' });
+await page.getByTestId('due-recurring').waitFor();
+check(true, 'Vaqti kelgan doimiy to‘lov bosh ekranda eslatiladi');
+await page.getByTestId('due-recurring').getByRole('button', { name: /Qo‘shish/ }).click();
+await page.waitForTimeout(400);
+check((await balance()) === '5 900 000 so‘m', `Doimiy to‘lov bir bosishda qo‘shildi: ${await balance()}`);
+await page.goto(BASE + '#/recurring');
+await page.getByText('Ijara').first().waitFor();
+check(true, 'Doimiy to‘lovlar sahifasi');
+// Keyingi testlar uchun: bu yozuvlarni olib tashlaymiz
+for (const id of await page.evaluate(async () => {
+  const r = indexedDB.open('personal-finance');
+  const db = await new Promise((x) => (r.onsuccess = () => x(r.result)));
+  const t = db.transaction(['transactions', 'recurring', 'transfers', 'accounts'], 'readwrite');
+  const ids = [];
+  await new Promise((done) => {
+    t.objectStore('transactions').getAll().onsuccess = (e) => {
+      for (const x of e.target.result) if (x.note === 'Ijara') { t.objectStore('transactions').delete(x.id); ids.push(x.id); }
+      t.objectStore('recurring').clear();
+      t.objectStore('transfers').clear();
+      t.objectStore('accounts').getAll().onsuccess = (ev) => {
+        for (const a of ev.target.result) if (a.name === 'Humo') t.objectStore('accounts').delete(a.id);
+        done();
+      };
+    };
+  });
+  await new Promise((x) => (t.oncomplete = x));
+  return ids;
+})) void id;
+await page.goto(BASE);
+await page.locator('[data-testid=balance]').waitFor();
+check((await balance()) === '5 800 000 so‘m', `Tozalashdan keyin balans: ${await balance()}`);
+
 // 5. Davr almashinuvi
 await page.getByRole('radio', { name: 'Kecha' }).click();
 await page.waitForTimeout(200);
@@ -113,6 +191,10 @@ await page.getByRole('radio', { name: 'Shu oy' }).click();
 // 6. Budjet (menyu orqali)
 await page.getByRole('button', { name: 'Menyuni ochish' }).click();
 await page.getByRole('dialog', { name: 'Menyu' }).getByRole('link', { name: 'Budjetlar' }).click();
+await page.locator('[data-info=budgets]').first().click();
+await page.getByRole('dialog', { name: /Budjetlar nima/ }).waitFor();
+check(true, 'Budjetlar yonidagi ⓘ — vazifasi tushuntiriladi');
+await page.getByRole('button', { name: 'Tushunarli' }).click();
 await page.getByRole('button', { name: 'Birinchi budjetni qo‘shish' }).click();
 await dialog().getByRole('radio', { name: 'Oziq-ovqat' }).click();
 await page.locator('#b-limit').fill('250000');
@@ -205,6 +287,7 @@ const mctx = await browser.newContext({ ...devices['iPhone 13'] });
 const m = await mctx.newPage();
 m.on('pageerror', (e) => errors.push(e.message));
 await m.goto(BASE);
+await m.getByRole('button', { name: 'Brauzerda davom etish' }).click();
 await m.getByText('Hali yozuvlar yo‘q').waitFor();
 const pad = async (str) => {
   for (const ch of str) await m.locator(`[data-numpad] [data-key="${ch === ',' ? 'dec' : ch}"]`).click();
@@ -212,9 +295,14 @@ const pad = async (str) => {
 await m.getByRole('button', { name: 'Xarajat qo‘shish', exact: true }).click();
 check(await m.locator('[data-numpad]').isVisible(), 'Mobil: ilovaning o‘z klaviaturasi ochildi');
 check((await m.locator('#tx-amount').getAttribute('inputmode')) === 'none', 'Mobil: tizim klaviaturasi o‘chirilgan');
-await pad('45');
+await pad('40');
 await m.locator('[data-numpad] [data-key="000"]').click();
-check((await m.locator('#tx-amount').inputValue()) === '45 000', `Mobil klaviatura: 4,5,000 → ${await m.locator('#tx-amount').inputValue()}`);
+await m.locator('[data-numpad] [data-key="plus"]').click();
+await pad('5');
+await m.locator('[data-numpad] [data-key="000"]').click();
+check((await m.locator('#tx-amount').inputValue()) === '40 000+5 000', `Mobil klaviatura: hisoblash ifodasi → ${await m.locator('#tx-amount').inputValue()}`);
+await m.locator('[data-numpad] [data-key="equals"]').click();
+check((await m.locator('#tx-amount').inputValue()) === '45 000', `“=” natija: ${await m.locator('#tx-amount').inputValue()}`);
 await m.getByRole('button', { name: 'Tayyor' }).click();
 await m.getByRole('dialog').getByRole('radio', { name: 'Transport', exact: true }).click();
 await m.getByRole('dialog').getByRole('button', { name: 'Saqlash' }).click();

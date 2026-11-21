@@ -4,7 +4,7 @@
  * Kelajakda server bilan sinxronlash qo‘shilsa, o‘zgarishlarni shu funksiyalarda navbatga qo‘yish kifoya.
  */
 import { db } from '@/database/db';
-import type { Budget, Category, Minor, PaymentMethod, SecurityConfig, Transaction, TxType } from '@/types';
+import type { Account, AccountKind, Budget, Category, Minor, PaymentMethod, Recurring, RecurringFreq, SecurityConfig, Transaction, Transfer, TxType } from '@/types';
 import { cleanText, uuid } from '@/utils/misc';
 import { isValidISODate } from '@/utils/date';
 import { MAX_MINOR } from '@/utils/money';
@@ -30,21 +30,29 @@ export interface TransactionInput {
   type: TxType;
   amount: Minor;
   categoryId: string;
+  accountId: string;
   date: string;
   note?: string;
-  paymentMethod: PaymentMethod;
+  /** Berilmasa hisob turidan olinadi */
+  paymentMethod?: PaymentMethod;
 }
 
-async function validateTx(input: TransactionInput): Promise<TransactionInput> {
+export function paymentForKind(kind: AccountKind | undefined): PaymentMethod {
+  return kind === 'cash' ? 'cash' : kind === 'card' ? 'card' : 'other';
+}
+
+async function validateTx(input: TransactionInput): Promise<Required<TransactionInput>> {
   if (input.type !== 'income' && input.type !== 'expense') throw new ValidationError('Tranzaksiya turi noto‘g‘ri');
   if (!Number.isSafeInteger(input.amount) || input.amount <= 0 || input.amount > MAX_MINOR)
     throw new ValidationError('Summa noto‘g‘ri');
   if (!isValidISODate(input.date)) throw new ValidationError('Sana noto‘g‘ri');
-  if (!PAYMENT_LABEL[input.paymentMethod]) throw new ValidationError('To‘lov turi noto‘g‘ri');
   const cat = await db.categories.get(input.categoryId);
   if (!cat) throw new ValidationError('Kategoriya topilmadi');
   if (cat.type !== input.type) throw new ValidationError('Kategoriya turi tranzaksiya turiga mos emas');
-  return { ...input, note: cleanText(input.note ?? '', NOTE_MAX) };
+  const acc = await db.accounts.get(input.accountId);
+  if (!acc) throw new ValidationError('Hisob topilmadi');
+  const paymentMethod = input.paymentMethod && PAYMENT_LABEL[input.paymentMethod] ? input.paymentMethod : paymentForKind(acc.kind);
+  return { ...input, paymentMethod, note: cleanText(input.note ?? '', NOTE_MAX) };
 }
 
 export async function addTransaction(input: TransactionInput): Promise<Transaction> {
@@ -55,6 +63,7 @@ export async function addTransaction(input: TransactionInput): Promise<Transacti
     type: v.type,
     amount: v.amount,
     categoryId: v.categoryId,
+    accountId: v.accountId,
     date: v.date,
     note: v.note ?? '',
     paymentMethod: v.paymentMethod,
@@ -71,6 +80,7 @@ export async function updateTransaction(id: string, input: TransactionInput): Pr
     type: v.type,
     amount: v.amount,
     categoryId: v.categoryId,
+    accountId: v.accountId,
     date: v.date,
     note: v.note ?? '',
     paymentMethod: v.paymentMethod,
@@ -152,7 +162,7 @@ export async function countCategoryUsage(id: string): Promise<{ transactions: nu
  * Hammasi bitta atomar tranzaksiyada bajariladi.
  */
 export async function deleteCategory(id: string, reassignTo?: string): Promise<void> {
-  await db.transaction('rw', db.categories, db.transactions, db.budgets, async () => {
+  await db.transaction('rw', [db.categories, db.transactions, db.budgets, db.recurring], async () => {
     const cat = await db.categories.get(id);
     if (!cat) throw new ValidationError('Kategoriya topilmadi');
     const sameTypeCount = await db.categories.where('type').equals(cat.type).count();
@@ -165,6 +175,12 @@ export async function deleteCategory(id: string, reassignTo?: string): Promise<v
       if (!target || target.type !== cat.type) throw new ValidationError('Tanlangan kategoriya mos emas');
       const now = Date.now();
       await db.transactions.where('categoryId').equals(id).modify({ categoryId: reassignTo, updatedAt: now });
+    }
+    // Doimiy to‘lovlar: kategoriya o‘chsa — ko‘chiriladi yoki o‘chiriladi
+    const recs = await db.recurring.filter((r) => r.categoryId === id).toArray();
+    for (const r of recs) {
+      if (reassignTo && reassignTo !== id) await db.recurring.update(r.id, { categoryId: reassignTo, updatedAt: Date.now() });
+      else await db.recurring.delete(r.id);
     }
     await db.budgets.where('categoryId').equals(id).delete();
     await db.categories.delete(id);
@@ -199,6 +215,8 @@ export async function deleteBudget(id: string): Promise<void> {
 export const META_INITIAL_BALANCE = 'initialBalance';
 export const META_SECURITY = 'security';
 export const META_ONBOARDING = 'onboardingDismissed';
+export const META_LAST_BACKUP = 'lastBackupAt';
+export const META_BACKUP_SNOOZE = 'backupSnoozeUntil';
 
 export async function getMeta<T>(key: string, fallback: T): Promise<T> {
   const r = await db.meta.get(key);
@@ -232,11 +250,219 @@ export async function setSecurity(cfg: SecurityConfig): Promise<void> {
 /** Barcha moliyaviy ma’lumotlarni o‘chirish (sozlamalar va xavfsizlik saqlanadi), standart kategoriyalar tiklanadi */
 export async function wipeAllData(): Promise<void> {
   const { defaultCategories } = await import('@/database/defaults');
-  await db.transaction('rw', [db.transactions, db.categories, db.budgets, db.meta], async () => {
+  const { defaultAccounts } = await import('@/database/defaults');
+  await db.transaction('rw', [db.transactions, db.categories, db.budgets, db.meta, db.accounts, db.transfers, db.recurring], async () => {
     await db.transactions.clear();
     await db.budgets.clear();
     await db.categories.clear();
+    await db.transfers.clear();
+    await db.recurring.clear();
+    await db.accounts.clear();
     await db.categories.bulkAdd(defaultCategories());
-    await db.meta.where('key').anyOf([META_INITIAL_BALANCE, META_ONBOARDING]).delete();
+    await db.accounts.bulkAdd(defaultAccounts());
+    await db.meta.where('key').anyOf([META_INITIAL_BALANCE, META_ONBOARDING, META_LAST_BACKUP, META_BACKUP_SNOOZE]).delete();
   });
+}
+
+// ───────────────────────── Hisoblar ─────────────────────────
+
+export const ACCOUNT_KINDS: { value: AccountKind; label: string; icon: string }[] = [
+  { value: 'card', label: 'Karta', icon: 'credit-card' },
+  { value: 'cash', label: 'Naqd', icon: 'banknote' },
+  { value: 'savings', label: 'Jamg‘arma', icon: 'piggy-bank' },
+  { value: 'other', label: 'Boshqa', icon: 'wallet' },
+];
+export const ACCOUNT_NAME_MAX = 32;
+
+export interface AccountInput {
+  name: string;
+  kind: AccountKind;
+  icon: string;
+  color: string;
+  /** Foydalanuvchi ko‘rsatgan JORIY qoldiq — boshlang‘ich qoldiq shundan hisoblanadi */
+  currentBalance?: Minor;
+}
+
+/** Hisob bo‘yicha harakatlar yig‘indisi: daromad − xarajat + kirgan o‘tkazma − chiqqan o‘tkazma */
+export async function accountFlow(id: string): Promise<Minor> {
+  const [txs, tin, tout] = await Promise.all([
+    db.transactions.where('accountId').equals(id).toArray(),
+    db.transfers.where('toId').equals(id).toArray(),
+    db.transfers.where('fromId').equals(id).toArray(),
+  ]);
+  let flow = 0;
+  for (const t of txs) flow += t.type === 'income' ? t.amount : -t.amount;
+  for (const t of tin) flow += t.amount;
+  for (const t of tout) flow -= t.amount;
+  return flow;
+}
+
+async function validateAccount(input: AccountInput, excludeId?: string): Promise<AccountInput> {
+  const name = cleanText(input.name, ACCOUNT_NAME_MAX);
+  if (!name) throw new ValidationError('Hisob nomini kiriting');
+  if (!ACCOUNT_KINDS.some((k) => k.value === input.kind)) throw new ValidationError('Hisob turi noto‘g‘ri');
+  if (!/^#[0-9a-fA-F]{6}$/.test(input.color)) throw new ValidationError('Rang noto‘g‘ri');
+  if (input.currentBalance !== undefined && (!Number.isSafeInteger(input.currentBalance) || Math.abs(input.currentBalance) > MAX_MINOR))
+    throw new ValidationError('Qoldiq noto‘g‘ri');
+  const all = await db.accounts.toArray();
+  if (all.some((a) => a.id !== excludeId && a.name.toLocaleLowerCase() === name.toLocaleLowerCase()))
+    throw new ValidationError('Bunday nomli hisob allaqachon mavjud');
+  return { ...input, name, icon: cleanText(input.icon, 32) || 'wallet' };
+}
+
+export async function addAccount(input: AccountInput): Promise<Account> {
+  const v = await validateAccount(input);
+  const last = await db.accounts.orderBy('order').last();
+  const now = Date.now();
+  const acc: Account = {
+    id: uuid(),
+    name: v.name,
+    kind: v.kind,
+    icon: v.icon,
+    color: v.color,
+    initialBalance: v.currentBalance ?? 0,
+    order: (last?.order ?? 0) + 1,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.accounts.add(acc);
+  return acc;
+}
+
+export async function updateAccount(id: string, input: AccountInput): Promise<void> {
+  const existing = await db.accounts.get(id);
+  if (!existing) throw new ValidationError('Hisob topilmadi');
+  const v = await validateAccount(input, id);
+  const patch: Partial<Account> = { name: v.name, kind: v.kind, icon: v.icon, color: v.color, updatedAt: Date.now() };
+  if (v.currentBalance !== undefined) patch.initialBalance = v.currentBalance - (await accountFlow(id));
+  await db.accounts.update(id, patch);
+}
+
+export async function countAccountUsage(id: string): Promise<number> {
+  const [a, b, c, d] = await Promise.all([
+    db.transactions.where('accountId').equals(id).count(),
+    db.transfers.where('fromId').equals(id).count(),
+    db.transfers.where('toId').equals(id).count(),
+    db.recurring.filter((r) => r.accountId === id).count(),
+  ]);
+  return a + b + c + d;
+}
+
+/**
+ * Hisobni o‘chirish. Ishlatilgan bo‘lsa, barcha yozuvlar `reassignTo` hisobiga ko‘chiriladi,
+ * boshlang‘ich qoldig‘i ham qo‘shiladi — umumiy balans o‘zgarmaydi.
+ */
+export async function deleteAccount(id: string, reassignTo?: string): Promise<void> {
+  await db.transaction('rw', [db.accounts, db.transactions, db.transfers, db.recurring], async () => {
+    const acc = await db.accounts.get(id);
+    if (!acc) throw new ValidationError('Hisob topilmadi');
+    if ((await db.accounts.count()) <= 1) throw new ValidationError('Kamida bitta hisob qolishi kerak');
+    const used = await countAccountUsage(id);
+    if ((used > 0 || acc.initialBalance !== 0) && (!reassignTo || reassignTo === id)) throw new ValidationError('Yozuvlarni ko‘chirish uchun hisob tanlang');
+    const now = Date.now();
+    if (reassignTo && reassignTo !== id) {
+      const target = await db.accounts.get(reassignTo);
+      if (!target) throw new ValidationError('Tanlangan hisob topilmadi');
+      await db.transactions.where('accountId').equals(id).modify({ accountId: reassignTo, updatedAt: now });
+      await db.recurring.filter((r) => r.accountId === id).modify({ accountId: reassignTo, updatedAt: now });
+      await db.transfers.where('fromId').equals(id).modify({ fromId: reassignTo, updatedAt: now });
+      await db.transfers.where('toId').equals(id).modify({ toId: reassignTo, updatedAt: now });
+      // O‘ziga o‘tkazma bo‘lib qolganlari ma’nosiz — o‘chiriladi
+      await db.transfers.filter((t) => t.fromId === t.toId).delete();
+      await db.accounts.update(reassignTo, { initialBalance: target.initialBalance + acc.initialBalance, updatedAt: now });
+    }
+    await db.accounts.delete(id);
+  });
+}
+
+// ───────────────────────── O‘tkazmalar ─────────────────────────
+
+export interface TransferInput {
+  fromId: string;
+  toId: string;
+  amount: Minor;
+  date: string;
+  note?: string;
+}
+
+export async function addTransfer(input: TransferInput): Promise<Transfer> {
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0 || input.amount > MAX_MINOR) throw new ValidationError('Summa noto‘g‘ri');
+  if (input.fromId === input.toId) throw new ValidationError('Bir xil hisoblar orasida o‘tkazma qilib bo‘lmaydi');
+  if (!isValidISODate(input.date)) throw new ValidationError('Sana noto‘g‘ri');
+  const [from, to] = await Promise.all([db.accounts.get(input.fromId), db.accounts.get(input.toId)]);
+  if (!from || !to) throw new ValidationError('Hisob topilmadi');
+  const now = Date.now();
+  const t: Transfer = { id: uuid(), fromId: from.id, toId: to.id, amount: input.amount, date: input.date, note: cleanText(input.note ?? '', NOTE_MAX), createdAt: now, updatedAt: now };
+  await db.transfers.add(t);
+  return t;
+}
+
+export async function deleteTransfer(id: string): Promise<Transfer | undefined> {
+  const t = await db.transfers.get(id);
+  await db.transfers.delete(id);
+  return t;
+}
+
+// ───────────────────────── Doimiy to‘lovlar ─────────────────────────
+
+export interface RecurringInput {
+  type: TxType;
+  amount: Minor;
+  categoryId: string;
+  accountId: string;
+  note?: string;
+  freq: RecurringFreq;
+  startDate: string;
+  /** Birinchi sana allaqachon tranzaksiya sifatida yozilgan bo‘lsa — shu sana */
+  lastDate?: string | null;
+}
+
+export async function addRecurring(input: RecurringInput): Promise<Recurring> {
+  if (input.freq !== 'weekly' && input.freq !== 'monthly') throw new ValidationError('Takrorlanish turi noto‘g‘ri');
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0 || input.amount > MAX_MINOR) throw new ValidationError('Summa noto‘g‘ri');
+  if (!isValidISODate(input.startDate)) throw new ValidationError('Sana noto‘g‘ri');
+  const [cat, acc] = await Promise.all([db.categories.get(input.categoryId), db.accounts.get(input.accountId)]);
+  if (!cat || cat.type !== input.type) throw new ValidationError('Kategoriya mos emas');
+  if (!acc) throw new ValidationError('Hisob topilmadi');
+  const now = Date.now();
+  const r: Recurring = {
+    id: uuid(),
+    type: input.type,
+    amount: input.amount,
+    categoryId: input.categoryId,
+    accountId: input.accountId,
+    note: cleanText(input.note ?? '', NOTE_MAX),
+    freq: input.freq,
+    startDate: input.startDate,
+    lastDate: input.lastDate && isValidISODate(input.lastDate) ? input.lastDate : null,
+    active: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.recurring.add(r);
+  return r;
+}
+
+export async function setRecurringActive(id: string, active: boolean): Promise<void> {
+  await db.recurring.update(id, { active, updatedAt: Date.now() });
+}
+
+export async function deleteRecurring(id: string): Promise<void> {
+  await db.recurring.delete(id);
+}
+
+/** Muddati kelgan doimiy to‘lovni tasdiqlash: tranzaksiya yaratiladi va oxirgi sana yangilanadi */
+export async function confirmRecurring(id: string, date: string, amount?: Minor): Promise<Transaction> {
+  return db.transaction('rw', [db.recurring, db.transactions, db.categories, db.accounts], async () => {
+    const r = await db.recurring.get(id);
+    if (!r) throw new ValidationError('Doimiy to‘lov topilmadi');
+    const tx = await addTransaction({ type: r.type, amount: amount ?? r.amount, categoryId: r.categoryId, accountId: r.accountId, date, note: r.note });
+    await db.recurring.update(id, { lastDate: date, updatedAt: Date.now() });
+    return tx;
+  });
+}
+
+/** Bu safar o‘tkazib yuborish (tranzaksiya yaratilmaydi) */
+export async function skipRecurring(id: string, date: string): Promise<void> {
+  await db.recurring.update(id, { lastDate: date, updatedAt: Date.now() });
 }

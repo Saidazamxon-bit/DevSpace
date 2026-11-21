@@ -48,7 +48,7 @@ export function ToastHost() {
   return createPortal(
     <div
       aria-live="polite"
-      className="pointer-events-none fixed z-[80] inset-x-3 bottom-[calc(6.25rem+var(--safe-bottom))] lg:bottom-auto lg:top-5 lg:right-5 lg:left-auto flex flex-col gap-2 items-center lg:items-end"
+      className="pointer-events-none fixed z-[80] inset-x-3 bottom-[calc(6.25rem+var(--safe-bottom))] lg:bottom-6 lg:right-6 lg:left-auto flex flex-col gap-2 items-center lg:items-end"
     >
       {toasts.map((t) => (
         <ToastItem key={t.id} t={t} />

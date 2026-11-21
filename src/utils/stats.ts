@@ -208,3 +208,21 @@ export function financialHealth(t: Totals): Health {
   if (rate >= 0) return { savingsRate: rate, level: 'fair', title: 'Barqaror', message: 'Xarajatlar daromad doirasida. Tejash ulushini 20% ga yetkazishga harakat qiling.' };
   return { savingsRate: rate, level: 'poor', title: 'Xarajat daromaddan oshgan', message: 'Bu davrda sarflaringiz daromaddan ko‘p. Budjetlarni ko‘rib chiqing.' };
 }
+
+/** Har bir hisobning joriy qoldig‘i: boshlang‘ich + daromad − xarajat + kirgan − chiqqan o‘tkazma */
+export function accountBalances(
+  accounts: { id: string; initialBalance: number }[],
+  txs: Transaction[],
+  transfers: { fromId: string; toId: string; amount: number }[],
+): Map<string, Minor> {
+  const m = new Map<string, Minor>(accounts.map((a) => [a.id, a.initialBalance]));
+  for (const t of txs) {
+    if (!m.has(t.accountId)) continue;
+    m.set(t.accountId, m.get(t.accountId)! + (t.type === 'income' ? t.amount : -t.amount));
+  }
+  for (const t of transfers) {
+    if (m.has(t.fromId)) m.set(t.fromId, m.get(t.fromId)! - t.amount);
+    if (m.has(t.toId)) m.set(t.toId, m.get(t.toId)! + t.amount);
+  }
+  return m;
+}

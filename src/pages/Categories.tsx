@@ -62,6 +62,7 @@ export default function Categories() {
   return (
     <div>
       <PageHeader
+        info="categories"
         title="Kategoriyalar"
         subtitle="Daromad va xarajatlarni guruhlash uchun"
         actions={

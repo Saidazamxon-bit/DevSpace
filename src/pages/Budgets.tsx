@@ -62,6 +62,7 @@ export default function Budgets() {
   return (
     <div>
       <PageHeader
+        info="budgets"
         title="Budjetlar"
         subtitle="Kategoriyalar bo‘yicha oylik xarajat limitlari"
         actions={

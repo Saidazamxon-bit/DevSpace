@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronRight, List, Minus, Plus, Search, Settings2, X } from 'lucide-react';
-import { useCategories, useInitialBalance, useTransactions } from '@/hooks/useData';
+import { useAccounts, useCategories, useTransactions, useTransfers } from '@/hooks/useData';
 import { useFormat } from '@/hooks/useFormat';
 import { useTxForm } from '@/store/ui';
 import { periodRange, usePeriodStore } from '@/store/period';
-import { byCategory, computeBalance, computeTotals, inRange } from '@/utils/stats';
+import { accountBalances, byCategory, computeTotals, inRange } from '@/utils/stats';
 import type { TxType } from '@/types';
 import { DonutRing } from '@/components/DonutRing';
 import { PeriodBar } from '@/components/PeriodBar';
 import { Amount } from '@/components/Amount';
 import { CategoryIcon, Segmented, Skeleton } from '@/components/ui/primitives';
-import { InitialBalanceModal } from '@/components/InitialBalanceModal';
+import { BackupReminder, DueRecurring } from '@/components/HomeBanners';
 import { MenuButton } from '@/layouts/Menu';
 import { Logo } from '@/components/Logo';
 import { cn } from '@/utils/misc';
@@ -19,7 +19,8 @@ import { cn } from '@/utils/misc';
 export default function Home() {
   const txs = useTransactions();
   const { list: categories, map: catMap } = useCategories();
-  const initial = useInitialBalance();
+  const { list: accounts } = useAccounts();
+  const transfers = useTransfers();
   const { money } = useFormat();
   const openNew = useTxForm((s) => s.openNew);
   const navigate = useNavigate();
@@ -27,7 +28,6 @@ export default function Home() {
   const range = useMemo(() => periodRange(preset, offset, custom), [preset, offset, custom]);
   const [selected, setSelected] = useState<string | null>(null);
   const [listType, setListType] = useState<TxType>('expense');
-  const [ibOpen, setIbOpen] = useState(false);
   const [params, setParams] = useSearchParams();
 
   // Manifest yorliqlari: ./#/?add=expense
@@ -41,18 +41,20 @@ export default function Home() {
   }, [params, setParams, openNew]);
 
   const data = useMemo(() => {
-    if (!txs) return null;
+    if (!txs || !accounts || !transfers) return null;
     const list = inRange(txs, range);
     const expenseSlices = byCategory(list, 'expense', catMap);
+    const balances = accountBalances(accounts, txs, transfers);
     return {
       totals: computeTotals(list),
-      balance: computeBalance(initial ?? 0, txs),
+      balances,
+      balance: [...balances.values()].reduce((s, x) => s + x, 0),
       expenseSlices,
       incomeSlices: byCategory(list, 'income', catMap),
       spentBy: new Map(expenseSlices.map((s) => [s.categoryId, s.total])),
       hasAny: txs.length > 0,
     };
-  }, [txs, range, catMap, initial]);
+  }, [txs, range, catMap, accounts, transfers]);
 
   // Davr o‘zgarsa yoki kategoriya endi bo‘lmasa — tanlovni bekor qilish
   useEffect(() => setSelected(null), [range.from, range.to]);
@@ -118,6 +120,39 @@ export default function Home() {
         </Link>
       </header>
 
+      {/* Eng tepada — jami mablag‘. Bosilsa: Karta, Naqd, Jamg‘arma … */}
+      <Link
+        to="/accounts"
+        className="mx-auto mb-3 block max-w-md rounded-3xl bg-accent px-5 py-3 text-accent-ink shadow-card transition-transform active:scale-[0.99] lg:max-w-xl"
+        data-testid="balance-panel"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-medium opacity-80">Jami mablag‘</span>
+          <ChevronRight size={18} className="opacity-70" />
+        </div>
+        <p className="text-[26px] font-bold leading-tight" data-testid="balance">
+          {data ? <Amount value={data.balance} /> : '…'}
+        </p>
+        {data && accounts && (
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {accounts.slice(0, 3).map((a) => (
+              <span key={a.id} className="min-w-0 rounded-xl bg-black/10 px-2.5 py-1.5 dark:bg-black/20">
+                <span className="flex items-center gap-1 text-[11px] font-medium opacity-80">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: a.color }} />
+                  <span className="truncate">{a.name}</span>
+                </span>
+                <span className="block truncate text-[13px] font-bold">{money(data.balances.get(a.id) ?? 0, { compact: true, plain: true })}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </Link>
+
+      <div className="mx-auto mb-3 max-w-xl space-y-2 empty:hidden">
+        <DueRecurring />
+        {txs && <BackupReminder txs={txs} />}
+      </div>
+
       <PeriodBar preset={preset} range={range} custom={custom} onPreset={setPreset} onShift={shift} onCustom={setCustom} />
 
       <div className="mt-2 grid items-start gap-6 lg:mt-6 lg:grid-cols-2 lg:gap-10">
@@ -135,31 +170,6 @@ export default function Home() {
           </div>
           <p className="mt-1 hidden text-center text-[12px] text-subtle [@media(min-height:740px)]:block">Ikonkaga bosing — shu kategoriyaga tez xarajat qo‘shiladi</p>
 
-          {/* Balans paneli */}
-          {data && !data.hasAny && !initial ? (
-            <button
-              type="button"
-              onClick={() => setIbOpen(true)}
-              className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl bg-accent px-5 py-4 text-left text-accent-ink shadow-card active:scale-[0.99] transition-transform"
-            >
-              <span>
-                <span className="block text-[13px] font-medium opacity-80">Balans</span>
-                <span className="block text-[15px] font-semibold">Boshlang‘ich balansni kiriting</span>
-              </span>
-              <ChevronRight size={20} />
-            </button>
-          ) : (
-            <Link
-              to="/transactions"
-              className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl bg-accent px-5 py-3.5 text-accent-ink shadow-card active:scale-[0.99] transition-transform"
-              data-testid="balance-panel"
-            >
-              <span className="text-[15px] font-semibold">Balans</span>
-              <span className="text-xl font-bold" data-testid="balance">
-                {data ? <Amount value={data.balance} /> : '…'}
-              </span>
-            </Link>
-          )}
         </section>
 
         {/* Kategoriyalar ro‘yxati */}
@@ -235,7 +245,6 @@ export default function Home() {
         </div>
       </div>
 
-      <InitialBalanceModal open={ibOpen} onClose={() => setIbOpen(false)} current={initial ?? 0} />
     </div>
   );
 }

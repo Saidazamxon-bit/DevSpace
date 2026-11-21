@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Transaction, TxType } from '@/types';
+import type { RecurringFreq, Transaction, TxType } from '@/types';
 
 // ───────── Toast ─────────
 export type ToastKind = 'success' | 'error' | 'info' | 'warning';
@@ -71,8 +71,9 @@ interface TxFormState {
   open: boolean;
   type: TxType;
   categoryId: string | null;
+  repeat: RecurringFreq | null;
   editing: Transaction | null;
-  openNew: (type?: TxType, categoryId?: string) => void;
+  openNew: (type?: TxType, categoryId?: string, repeat?: RecurringFreq) => void;
   openEdit: (tx: Transaction) => void;
   close: () => void;
 }
@@ -80,8 +81,9 @@ export const useTxForm = create<TxFormState>((set) => ({
   open: false,
   type: 'expense',
   categoryId: null,
+  repeat: null,
   editing: null,
-  openNew: (type = 'expense', categoryId) => set({ open: true, type, categoryId: categoryId ?? null, editing: null }),
+  openNew: (type = 'expense', categoryId, repeat) => set({ open: true, type, categoryId: categoryId ?? null, repeat: repeat ?? null, editing: null }),
   openEdit: (tx) => set({ open: true, type: tx.type, editing: tx }),
   close: () => set({ open: false }),
 }));
