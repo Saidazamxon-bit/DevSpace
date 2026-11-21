@@ -92,7 +92,8 @@ function compactNumber(absMinor: number, decimal: string): string {
 /** Grafik o‘qlari uchun qisqa son */
 export function formatAxis(minor: number): string {
   const units = Math.abs(minor) / 100;
-  const sign = minor < 0 ? '−' : '';
+  // Juda kichik manfiy son yaxlitlanganda “−0” chiqmasin
+  const sign = minor < 0 && units >= 0.5 ? '−' : '';
   if (units >= 1e9) return `${sign}${trim(units / 1e9)} mlrd`;
   if (units >= 1e6) return `${sign}${trim(units / 1e6)} mln`;
   if (units >= 1e3) return `${sign}${trim(units / 1e3)} ming`;

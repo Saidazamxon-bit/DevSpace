@@ -16,15 +16,15 @@ function OfflineBadge() {
   );
 }
 
-/** Layout: kontent markazda, pastda shisha tab-bar */
+/** Layout: kontent markazda, pastda (kompyuterda — chapda) shisha tab-bar */
 export function AppLayout() {
   const loc = useLocation();
   return (
     // Sahifa o‘zi emas, shu konteyner aylanadi: yon tomondagi scroll chizig‘i ko‘rinmaydi
     // va iOS’dagi “rezina” tortilish o‘chadi (ilovadek his)
-    <div id="app-scroll" className="no-scrollbar h-dvh overflow-y-auto overflow-x-hidden overscroll-none">
+    <div id="app-scroll" className="no-scrollbar h-dvh overflow-y-auto overflow-x-hidden overscroll-none lg:pl-[112px]">
       <OfflineBadge />
-      <main className="mx-auto w-full max-w-5xl px-4 pb-[calc(6.5rem+var(--safe-bottom))] sm:px-6">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-[calc(6.5rem+var(--safe-bottom))] sm:px-6 lg:pb-10">
         <div key={loc.pathname} className="animate-fade-in">
           <Outlet />
         </div>

@@ -28,17 +28,19 @@ export function BalanceChart({
     let min = Math.min(...vals);
     let max = Math.max(...vals);
     if (min === max) {
-      const pad = Math.max(1, Math.abs(min) * 0.1) || 100_00;
+      // Tekis chiziq (masalan, hammasi 0): o‘qda ma’noli yaxlit qiymatlar bo‘lsin
+      const pad = Math.max(Math.abs(min) * 0.1, 1000_00);
       min -= pad;
       max += pad;
     }
+    // O‘q yozuvlari: haqiqiy eng katta, o‘rta va eng kichik qiymat
+    const ticks = [max, (max + min) / 2, min];
     const span = max - min;
     min -= span * 0.12;
     max += span * 0.12;
     const x = (i: number) => (points.length === 1 ? (W - PAD_R) / 2 : (i / (points.length - 1)) * (W - PAD_R - 6) + 3);
     const y = (v: number) => H - 8 - ((v - min) / (max - min)) * (H - 16);
     const d = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-    const ticks = [max - (max - min) * 0.12, (max + min) / 2, min + (max - min) * 0.12];
     return { x, y, d, ticks };
   }, [points]);
 

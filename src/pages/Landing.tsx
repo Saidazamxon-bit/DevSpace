@@ -289,51 +289,145 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
 }
 
 /**
- * Ilova ko‘rinishi — iPhone maketi. Scroll qilinganda telefon orqaga yotgan holatdan
- * to‘g‘rilanib, kattalashib chiqadi; keyin yengil suzib turadi.
+ * Ilova ko‘rinishi — iPhone maketi, scrollga bog‘langan 3D harakat.
+ *
+ * - Kirish: telefon orqaga yotgan holatdan to‘g‘rilanib, kattalashib chiqadi. Kompyuterda
+ *   telefon birinchi ekranda turadi, shuning uchun bu sahifa ochilganda o‘ynaydi; telefonda —
+ *   telefon ekranga chiqib kelayotganda scroll bilan.
+ * - Chiqish: sahifa pastga aylantirilganda telefon sekinroq ko‘tariladi (parallaks), oldinga
+ *   egiladi va biroz kichrayadi.
+ * - Kompyuterda sichqoncha ortidan yengil og‘adi.
+ *
+ * Silliqlik: scroll hodisasi faqat “maqsad” qiymatini yangilaydi; ko‘rinadigan qiymat har kadrda
+ * unga yumshoq yaqinlashadi (lerp). Shu sababli iPhone’dagi notekis scroll hodisalarida ham
+ * harakat titramaydi. Faqat transform/opacity o‘zgaradi (GPU), animatsiya tinch turganda rAF to‘xtaydi.
  */
 function PhonePreview() {
   const ref = useRef<HTMLDivElement>(null);
   const tiltRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     const tilt = tiltRef.current;
     if (!el || !tilt) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off') return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off';
+    if (reduced) {
+      tilt.style.transform = 'none';
+      tilt.style.opacity = '1';
+      return;
+    }
+
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    // Joriy (ko‘rinadigan) va maqsad qiymatlar
+    const cur = { enter: 0, exit: 0, mx: 0, my: 0 };
+    const tgt = { enter: 0, exit: 0, mx: 0, my: 0 };
     let frame = 0;
-    const update = () => {
-      frame = 0;
+    let visible = true;
+
+    const measure = () => {
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight || 1;
-      // 0 — telefon ekran pastida endi ko‘rindi, 1 — ekranning yuqori choragiga yetdi
-      const p = Math.min(1, Math.max(0, (vh - r.top) / (vh * 0.7)));
-      const e = 1 - Math.pow(1 - p, 3);
-      // To‘g‘rilangandan keyin chuqurlik uchun yengil parallaks
-      const past = Math.max(0, -r.top) * 0.12;
-      tilt.style.transform = `translateY(${((1 - e) * 70 - past).toFixed(1)}px) rotateX(${((1 - e) * 28).toFixed(2)}deg) scale(${(0.86 + 0.14 * e).toFixed(3)})`;
-      tilt.style.opacity = (0.35 + 0.65 * e).toFixed(3);
-      if (glowRef.current) glowRef.current.style.opacity = (0.2 + 0.8 * e).toFixed(3);
+      // 0 — telefonning yuqori qismi ekran pastida endi ko‘rindi, 1 — ekranning ~40% iga yetdi
+      tgt.enter = Math.min(1, Math.max(0, (vh - r.top) / (vh * 0.6)));
+      // 0 — telefon hali joyida, 1 — telefonning yarmi ekran tepasidan chiqib ketdi
+      tgt.exit = Math.min(1, Math.max(0, (vh * 0.12 - r.top) / (r.height * 0.9)));
+    };
+
+    const render = () => {
+      const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+      const e = ease(cur.enter);
+      const x = cur.exit;
+      const ty = (1 - e) * 90 - x * 60;
+      const rx = (1 - e) * 32 + x * 14 - cur.my * 6;
+      const ry = cur.mx * 9;
+      const sc = 0.84 + 0.16 * e - x * 0.06;
+      tilt.style.transform = `translate3d(0, ${ty.toFixed(2)}px, 0) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${sc.toFixed(4)})`;
+      tilt.style.opacity = (0.25 + 0.75 * e).toFixed(3);
+      if (glowRef.current) glowRef.current.style.opacity = (e * (1 - x * 0.6)).toFixed(3);
+      if (shadowRef.current) {
+        shadowRef.current.style.opacity = (0.15 + 0.85 * e * (1 - x * 0.5)).toFixed(3);
+        shadowRef.current.style.transform = `translate3d(${(cur.mx * -14).toFixed(1)}px, 0, 0) scale(${(0.8 + 0.2 * e).toFixed(3)}, 1)`;
+      }
+    };
+
+    const tick = () => {
+      frame = 0;
+      let moving = false;
+      for (const k of ['enter', 'exit', 'mx', 'my'] as const) {
+        // Kirish sekinroq (sahifa ochilgandagi intro), qolganlari scrollga tez ergashadi
+        const f = k === 'enter' ? 0.075 : k === 'exit' ? 0.2 : 0.09;
+        const d = tgt[k] - cur[k];
+        if (Math.abs(d) > 0.0005) {
+          cur[k] += d * f;
+          moving = true;
+        } else cur[k] = tgt[k];
+      }
+      render();
+      if (moving) frame = requestAnimationFrame(tick);
+    };
+    const kick = () => {
+      if (!frame && visible) frame = requestAnimationFrame(tick);
     };
     const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(update);
+      measure();
+      kick();
     };
-    update();
+    const onPointer = (ev: PointerEvent) => {
+      if (ev.pointerType !== 'mouse') return;
+      tgt.mx = (ev.clientX / window.innerWidth) * 2 - 1;
+      tgt.my = (ev.clientY / window.innerHeight) * 2 - 1;
+      kick();
+    };
+    const onLeave = () => {
+      tgt.mx = 0;
+      tgt.my = 0;
+      kick();
+    };
+
+    // Ekrandan tashqarida bo‘lsa — hisob-kitob qilmaymiz
+    const io =
+      typeof IntersectionObserver !== 'undefined'
+        ? new IntersectionObserver(([entry]) => {
+            visible = entry.isIntersecting;
+            if (visible) onScroll();
+          }, { rootMargin: '120px 0px' })
+        : null;
+    io?.observe(el);
+
+    render();
+    measure();
+    // Birinchi kadrdan keyin boshlaymiz — sahifa chizilib bo‘lgach intro silliq o‘ynaydi
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      kick();
+    });
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onScroll, { passive: true });
+    if (fine) {
+      window.addEventListener('pointermove', onPointer, { passive: true });
+      document.documentElement.addEventListener('pointerleave', onLeave);
+    }
     return () => {
       cancelAnimationFrame(frame);
+      io?.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
+      window.removeEventListener('pointermove', onPointer);
+      document.documentElement.removeEventListener('pointerleave', onLeave);
     };
   }, []);
 
   return (
-    <div ref={ref} className="relative mx-auto w-full max-w-[330px] [perspective:1100px]" data-testid="phone-preview">
-      {/* Orqadagi yumshoq nur */}
-      <div ref={glowRef} aria-hidden className="absolute inset-x-4 bottom-10 top-16 rounded-[3rem] bg-white/30 blur-3xl transition-opacity" />
-      <div ref={tiltRef} className="relative origin-[50%_85%] will-change-transform">
+    <div ref={ref} className="relative mx-auto w-full max-w-[300px] [perspective:1200px] sm:max-w-[330px]" data-testid="phone-preview">
+      {/* Orqadagi yumshoq nur (statik xiralik, faqat opacity o‘zgaradi) */}
+      <div
+        ref={glowRef}
+        aria-hidden
+        className="phone-glow pointer-events-none absolute inset-x-[-10%] bottom-[8%] top-[12%] opacity-0"
+      />
+      <div ref={tiltRef} className="phone-tilt relative origin-[50%_80%] opacity-0">
         <div className="phone-float">
           <img
             src={appPreview}
@@ -341,11 +435,13 @@ function PhonePreview() {
             width={760}
             height={1568}
             decoding="async"
-            className="relative h-auto w-full select-none drop-shadow-[0_34px_50px_rgb(0_0_0/0.4)]"
+            className="relative block h-auto w-full select-none"
             draggable={false}
           />
         </div>
       </div>
+      {/* Yerga tushgan soya — filter o‘rniga gradient (telefonda qotmasligi uchun) */}
+      <div ref={shadowRef} aria-hidden className="phone-shadow pointer-events-none absolute -bottom-3 left-[12%] right-[12%] h-10 opacity-0" />
     </div>
   );
 }

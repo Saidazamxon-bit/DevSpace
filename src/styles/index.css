@@ -342,8 +342,8 @@ input[type='date'] {
   transform: none;
 }
 @keyframes phone-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
 }
 .phone-float {
   animation: phone-float 6s ease-in-out infinite;
@@ -388,4 +388,58 @@ input[type='date'] {
     radial-gradient(90% 70% at 100% 0%, rgb(255 255 255 / 0.1), transparent 60%),
     linear-gradient(165deg, rgb(var(--accent) / 0.78) 0%, rgb(var(--accent) / 0.5) 50%, rgb(var(--accent) / 0.28) 100%),
     rgb(10 14 24);
+}
+
+/* Tab-bar “pufagi”: telefonda gorizontal, kompyuterda vertikal suriladi */
+.tab-bubble {
+  top: 6px;
+  bottom: 6px;
+  left: calc(6px + (100% - 12px) * var(--i, 0) / 4);
+  width: calc((100% - 12px) / 4);
+  transition: left 0.3s cubic-bezier(0.3, 1.4, 0.5, 1), top 0.3s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+@media (min-width: 1024px) {
+  .tab-bubble {
+    left: 6px;
+    right: 6px;
+    width: auto;
+    bottom: auto;
+    top: calc(6px + (100% - 12px) * var(--i, 0) / 4);
+    height: calc((100% - 12px) / 4);
+  }
+}
+
+/* Tanishtiruv: telefon maketi */
+.phone-tilt {
+  will-change: transform, opacity;
+  transform: translate3d(0, 90px, 0) rotateX(32deg) scale(0.84);
+  backface-visibility: hidden;
+}
+.phone-glow {
+  border-radius: 9999px;
+  /* blur() filtri o‘rniga radial gradient — har kadrda qayta chizilmaydi */
+  background: radial-gradient(closest-side, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0.12) 55%, transparent 100%);
+  will-change: opacity;
+}
+.phone-shadow {
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.45), rgb(0 0 0 / 0.18) 55%, transparent 100%);
+  will-change: transform, opacity;
+}
+.phone-float {
+  will-change: transform;
+}
+html[data-motion='off'] .phone-tilt,
+html[data-motion='off'] .phone-glow,
+html[data-motion='off'] .phone-shadow {
+  opacity: 1 !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-tilt,
+  .phone-glow,
+  .phone-shadow {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

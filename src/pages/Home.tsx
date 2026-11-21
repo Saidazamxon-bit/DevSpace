@@ -13,7 +13,7 @@ import { getIcon } from '@/utils/icons';
 import { cn } from '@/utils/misc';
 import { Amount } from '@/components/Amount';
 import { BalanceChart } from '@/components/BalanceChart';
-import { ActionPill } from '@/components/ActionPill';
+import { ActionPill, HeroActions } from '@/components/ActionPill';
 import { CategoryIcon, Skeleton } from '@/components/ui/primitives';
 import { BackupReminder, DueRecurring } from '@/components/HomeBanners';
 import { Logo } from '@/components/Logo';
@@ -97,16 +97,16 @@ export default function Home() {
   const monthName = MONTHS[new Date().getMonth()];
 
   return (
-    <div className="relative pb-[calc(5rem+var(--safe-bottom))]">
+    <div className="relative pb-[calc(5rem+var(--safe-bottom))] lg:pb-0">
       {/* Ekran yuqoriga tortilganda (iOS) bo‘sh joy ko‘rinmasin — hero rangi davom etadi */}
-      <div aria-hidden className="hero-bg pointer-events-none absolute -inset-x-4 bottom-full h-[100vh] sm:-inset-x-6" />
+      <div aria-hidden className="hero-bg pointer-events-none absolute -inset-x-4 bottom-full h-[100vh] sm:-inset-x-6 lg:hidden" />
 
       {/* ── Hero: jami mablag‘ ── */}
-      <section className="hero-bg relative -mx-4 overflow-hidden rounded-b-[2.25rem] px-5 pb-20 text-white sm:-mx-6 sm:px-7" aria-labelledby="nw-title">
+      <section className="hero-bg relative -mx-4 overflow-hidden rounded-b-[2.25rem] px-5 pb-20 text-white sm:-mx-6 sm:px-7 lg:mx-0 lg:mt-6 lg:rounded-[2.25rem] lg:px-8 lg:pb-24" aria-labelledby="nw-title">
         <div aria-hidden className="hero-rings pointer-events-none absolute inset-0" />
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
 
-        <header className="relative flex items-center gap-3 pt-[calc(var(--safe-top)+0.75rem)]">
+        <header className="relative flex items-center gap-3 pt-[calc(var(--safe-top)+0.75rem)] lg:pt-6">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-inset ring-white/20 backdrop-blur">
             <Logo size={28} />
           </span>
@@ -147,11 +147,12 @@ export default function Home() {
             </p>
           )}
           {data && hover && <p className="mt-2.5 text-[13px] text-white/70">Shu kun oxiridagi qoldiq</p>}
+          <HeroActions />
         </div>
 
         {/* Hisoblar: Karta · Naqd · Jamg‘arma … */}
         {data && accounts && (
-          <ul className="no-scrollbar relative -mx-5 mt-6 flex gap-2 overflow-x-auto px-5 sm:-mx-7 sm:px-7" aria-label="Hisoblar">
+          <ul className="no-scrollbar relative -mx-5 mt-6 flex gap-2 overflow-x-auto px-5 sm:-mx-7 sm:px-7 lg:-mx-8 lg:mt-8 lg:justify-center lg:px-8" aria-label="Hisoblar">
             {accounts.map((a) => {
               const Icon = getIcon(a.icon);
               const bal = data.balances.get(a.id) ?? 0;
@@ -181,7 +182,7 @@ export default function Home() {
         )}
       </section>
 
-      <div className="relative z-10 -mt-12 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div className="relative z-10 -mt-12 grid lg:-mt-14 lg:px-4 grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4">
           {/* Mablag‘ dinamikasi */}
           <section className="card px-3 pb-3 pt-4" aria-label="Mablag‘ dinamikasi">
@@ -282,7 +283,8 @@ export default function Home() {
             <div className="px-3 py-8 text-center">
               <p className="font-semibold text-ink">Hali yozuvlar yo‘q</p>
               <p className="mx-auto mt-1 max-w-xs text-[13px] leading-relaxed text-muted">
-                Pastdagi <b className="text-expense">−</b> tugmasi bilan xarajat, <b className="text-accent">+</b> bilan daromad qo‘shing. <b>⇄</b> — hisoblar orasida o‘tkazma.
+                <span className="lg:hidden">Pastdagi</span>
+                <span className="hidden lg:inline">Yuqoridagi</span> <b className="text-expense">−</b> tugmasi bilan xarajat, <b className="text-accent">+</b> bilan daromad qo‘shing. <b>⇄</b> — hisoblar orasida o‘tkazma.
               </p>
             </div>
           ) : (
