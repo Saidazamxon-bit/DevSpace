@@ -8,6 +8,7 @@ import { toast } from '@/store/ui';
 import { Logo } from '@/components/Logo';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/utils/misc';
+import appPreview from '@/assets/app-preview.webp';
 
 const FEATURES = [
   { icon: Zap, color: '#1baf7a', title: 'Besh soniyada yozing', text: '− yoki + ni bosing, summani ilovaning o‘z klaviaturasida kiriting, kategoriyani tanlang. Shu bilan tamom.' },
@@ -263,50 +264,21 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-/** Ilova ko‘rinishining yengil illyustratsiyasi (yangi dizaynda, rasm fayllarisiz) */
+/** Ilova ko‘rinishi — haqiqiy iPhone maketi (shaffof fonli rasm) */
 function PhonePreview() {
-  const segs = [
-    { c: '#c026d3', v: 30 },
-    { c: '#a3c33a', v: 25 },
-    { c: '#1baf7a', v: 18 },
-    { c: '#e34948', v: 12 },
-    { c: '#eb6834', v: 8 },
-    { c: '#2a78d6', v: 7 },
-  ];
-  const R = 34;
-  const C = 2 * Math.PI * R;
-  let off = 0;
-  const line = [30, 28, 44, 42, 30, 26, 62];
   return (
-    <div className="mx-auto w-full max-w-[300px] animate-fade-up" aria-hidden>
-      <div className="rounded-[2.8rem] border-[9px] border-[#0d1411] bg-[#eef0f2] p-3 shadow-float">
-        <div className="mx-auto mb-2 h-5 w-24 rounded-full bg-[#0d1411]" />
-        <div className="rounded-[1.6rem] bg-white p-4 text-center text-[#16191f]">
-          <p className="text-[10px] text-[#626a79]">Jami mablag‘</p>
-          <p className="text-[22px] font-bold">10 262 000 <span className="text-[11px] text-[#949aa7]">so‘m</span></p>
-          <p className="text-[10px] font-semibold text-[#049163]">+2 362 000 so‘m <span className="rounded-full bg-[#04916326] px-1.5">+16%</span></p>
-          <svg viewBox="0 0 120 50" className="mt-2 w-full">
-            <polyline points={line.map((v, i) => `${i * 18 + 6},${50 - v * 0.7}`).join(' ')} fill="none" stroke="#7ccfa5" strokeWidth="1.8" strokeLinejoin="round" />
-            <circle cx={6 * 18 + 6} cy={50 - 62 * 0.7} r="2.6" fill="#1e9662" />
-          </svg>
-        </div>
-        <div className="mt-2.5 rounded-[1.6rem] bg-white p-3">
-          <p className="text-[10px] text-[#626a79]">Xarajatlar</p>
-          <svg viewBox="0 0 100 100" className="mx-auto w-[62%] -rotate-90">
-            {segs.map((s) => {
-              const len = (s.v / 100) * C;
-              const el = <circle key={s.c} cx="50" cy="50" r={R} fill="none" stroke={s.c} strokeWidth="7" strokeLinecap="round" strokeDasharray={`${len - 9} ${C - len + 9}`} strokeDashoffset={-off - 4.5} />;
-              off += len;
-              return el;
-            })}
-          </svg>
-        </div>
-        <div className="mx-auto mt-2.5 flex w-[86%] justify-around rounded-full bg-white/90 py-2 shadow">
-          {['#1e9662', '#9aa1ad', '#9aa1ad', '#9aa1ad'].map((c, i) => (
-            <span key={i} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-          ))}
-        </div>
-      </div>
+    <div className="relative mx-auto w-full max-w-[340px] animate-fade-up">
+      {/* Orqadagi yumshoq nur */}
+      <div aria-hidden className="absolute inset-x-6 bottom-6 top-10 rounded-[3rem] bg-white/25 blur-3xl" />
+      <img
+        src={appPreview}
+        alt="Personal Finance ilovasi iPhone’da: jami mablag‘, grafik, daromadni taqsimlash va oxirgi operatsiyalar"
+        width={760}
+        height={1134}
+        decoding="async"
+        className="relative h-auto w-full select-none drop-shadow-[0_30px_50px_rgb(0_0_0/0.35)]"
+        draggable={false}
+      />
     </div>
   );
 }
