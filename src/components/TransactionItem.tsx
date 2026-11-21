@@ -3,6 +3,7 @@ import type { Account, Category, Transaction } from '@/types';
 import { CategoryIcon } from './ui/primitives';
 import { useFormat } from '@/hooks/useFormat';
 import { cn } from '@/utils/misc';
+import { formatTime } from '@/utils/date';
 
 /** Ro‘yxatdagi bitta yozuv: kategoriya ikonasi, nomi, izoh va summa */
 export const TransactionItem = memo(function TransactionItem({
@@ -40,8 +41,11 @@ export const TransactionItem = memo(function TransactionItem({
           </p>
         )}
       </div>
-      <span className={cn('tabular shrink-0 text-[15px] font-semibold', income ? 'text-income' : 'text-ink')}>
-        {money(income ? tx.amount : -tx.amount, { sign: 'always' })}
+      <span className="shrink-0 text-right">
+        <span className={cn('tabular block text-[15px] font-semibold', income ? 'text-income' : 'text-ink')}>
+          {money(income ? tx.amount : -tx.amount, { sign: 'always' })}
+        </span>
+        <span className="tabular block text-[12px] text-subtle" data-testid="tx-time">{formatTime(tx.createdAt)}</span>
       </span>
     </button>
   );

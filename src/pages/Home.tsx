@@ -7,7 +7,7 @@ import { getDistribution } from '@/services/finance';
 import { useFormat } from '@/hooks/useFormat';
 import { useLock, useTxForm } from '@/store/ui';
 import { accountBalances, balanceSeries, computeTotals, inRange, type BalancePoint } from '@/utils/stats';
-import { addDays, endOfMonth, formatDayHeading, MONTHS, startOfMonth, todayISO } from '@/utils/date';
+import { addDays, endOfMonth, formatDayHeading, formatTime, MONTHS, startOfMonth, todayISO } from '@/utils/date';
 import { useSettings } from '@/store/settings';
 import { getIcon } from '@/utils/icons';
 import { cn } from '@/utils/misc';
@@ -297,7 +297,7 @@ export default function Home() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[15px] font-semibold text-ink">{t.note || cat?.name || 'Yozuv'}</span>
                         <span className="block truncate text-[12px] text-muted first-letter:uppercase">
-                          {formatDayHeading(t.date, dateFormat)}
+                          {formatDayHeading(t.date, dateFormat)} · {formatTime(t.createdAt)}
                           {t.note && cat ? ` · ${cat.name}` : ''}
                         </span>
                       </span>

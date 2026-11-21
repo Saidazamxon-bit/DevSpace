@@ -185,3 +185,10 @@ export function greeting(d = new Date()): string {
   if (h < 18) return 'Xayrli kun';
   return 'Xayrli kech';
 }
+
+/** Yozuv kiritilgan vaqt: 21:38 */
+export function formatTime(ts: number): string {
+  const d = new Date(ts);
+  if (!Number.isFinite(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
