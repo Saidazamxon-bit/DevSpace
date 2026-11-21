@@ -224,6 +224,16 @@ body {
   touch-action: pan-x pan-y;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Sahifa hech qachon yonga surilmasin */
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+@supports (overflow: clip) {
+  html,
+  body {
+    overflow-x: clip;
+  }
 }
 button,
 a,
@@ -239,4 +249,24 @@ a,
   textarea {
     font-size: 16px !important;
   }
+}
+
+/* iOS Safari: type=date maydoni width:100% ni e’tiborsiz qoldirib, konteynerdan chiqib ketadi */
+@supports (-webkit-touch-callout: none) {
+  input[type='date'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    text-align: left;
+  }
+  input[type='date']::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+  }
+}
+input[type='date'] {
+  min-width: 0;
+  max-width: 100%;
 }

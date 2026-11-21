@@ -81,7 +81,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          'relative w-full bg-surface text-ink shadow-lift outline-none flex flex-col',
+          'relative w-full max-w-full bg-surface text-ink shadow-lift outline-none flex flex-col overflow-hidden',
           'max-h-[92dvh] rounded-t-[1.75rem] sm:rounded-3xl animate-sheet-up sm:animate-pop-in',
           size === 'sm' && 'sm:max-w-sm',
           size === 'md' && 'sm:max-w-lg',
@@ -100,7 +100,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             <X size={20} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pb-4">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 sm:px-6 pb-4 min-w-0">{children}</div>
         {footer && (
           <div className="border-t border-line/70 px-5 sm:px-6 py-3.5 pb-[calc(0.875rem+var(--safe-bottom))] sm:pb-4 flex gap-2.5 justify-end">
             {footer}

@@ -181,7 +181,7 @@ export function TransactionForm() {
           {errors.category && <p className="mt-1.5 text-[13px] text-expense" role="alert">{errors.category}</p>}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
           <Field label="Sana" htmlFor="tx-date" error={errors.date}>
             <input id="tx-date" type="date" className={cn('input', errors.date && 'input-error')} value={date} max={addDays(todayISO(), 366)} onChange={(e) => setDate(e.target.value)} required />
           </Field>

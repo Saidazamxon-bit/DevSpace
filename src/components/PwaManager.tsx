@@ -21,10 +21,15 @@ export function PwaManager() {
           await reg.update();
         },
       });
-      // Har soatda yangilanishni tekshirish (faqat internet bo‘lsa)
-      window.setInterval(() => {
+      const check = () => {
         if (navigator.onLine) reg.update().catch(() => undefined);
-      }, 60 * 60 * 1000);
+      };
+      // Har soatda va ilova qayta ochilganda (iPhone o‘rnatilgan ilovani qayta yuklamay davom ettiradi)
+      window.setInterval(check, 60 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') check();
+      });
+      window.addEventListener('online', check);
     },
   });
 
