@@ -5,13 +5,14 @@ import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import { Field, Input } from '../components/ui/Fields';
 import Logo from '../components/layout/Logo';
+import { DEMO } from '../api/client';
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(DEMO ? 'demo@devspace.app' : '');
+  const [password, setPassword] = useState(DEMO ? 'demo12345' : '');
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,6 +52,7 @@ export default function Login() {
           <div className="auth-mobile-logo"><Logo /></div>
           <h1>Sign in</h1>
           <p>Welcome back. Enter your credentials to continue.</p>
+          {DEMO && <div className="demo-hint">Demo account is pre-filled: <strong>demo@devspace.app</strong> / <strong>demo12345</strong></div>}
           {error && <div className="form-alert" role="alert">{error}</div>}
           <Field label="Email" htmlFor="email">
             <Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoFocus />

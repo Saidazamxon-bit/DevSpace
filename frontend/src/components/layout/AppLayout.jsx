@@ -5,6 +5,22 @@ import Topbar from './Topbar';
 import MobileNav from './MobileNav';
 import { useAuth } from '../../context/AuthContext';
 import { useMediaQuery } from '../../hooks/useApi';
+import { DEMO } from '../../api/client';
+
+function DemoBanner() {
+  const reset = async () => {
+    if (!window.confirm('Reset all demo data to the original sample?')) return;
+    const m = await import('../../api/demo/server');
+    m.resetDemo();
+    window.location.reload();
+  };
+  return (
+    <div className="demo-banner" role="note">
+      <span><strong>Demo mode</strong> · sample data, saved only in this browser. Backend features (live checks, backups) are disabled.</span>
+      <button type="button" className="link-btn" onClick={reset}>Reset demo</button>
+    </div>
+  );
+}
 
 export default function AppLayout() {
   const { settings, updatePreferences } = useAuth();
@@ -32,6 +48,7 @@ export default function AppLayout() {
       <div className="main-col">
         <Topbar onMenu={() => setDrawer(true)} />
         <main id="main" className="content">
+          {DEMO && <DemoBanner />}
           <Outlet />
         </main>
       </div>

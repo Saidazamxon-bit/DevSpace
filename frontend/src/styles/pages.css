@@ -346,3 +346,9 @@ a.tl-card:hover { transform: translateY(-2px); border-color: var(--border); }
 .not-found h1 { font-size: 64px; color: var(--accent-ink); letter-spacing: -0.04em; }
 .snippet-back { display: none !important; margin-bottom: 8px; }
 @media (max-width: 899px) { .snippet-back { display: inline-flex !important; } }
+
+/* ---------- Demo mode ---------- */
+.demo-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--text-2); border-radius: var(--r-md); padding: 8px 14px; font-size: 12.5px; margin: 0 0 14px; }
+.demo-banner strong { color: var(--accent-ink); }
+.demo-hint { background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--text-2); }
+.demo-hint strong { color: var(--accent-ink); font-weight: 600; }

@@ -3,11 +3,12 @@ import react from '@vitejs/plugin-react';
 
 // The production build is written to ../public/app and served by PHP (views/layouts/app.php).
 // No Node.js process is needed on the server.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: './',
+  // demo mode = static frontend-only build (e.g. Vercel) with an in-browser mock API
+  base: mode === 'demo' ? '/' : './',
   build: {
-    outDir: '../public/app',
+    outDir: mode === 'demo' ? 'dist' : '../public/app',
     emptyOutDir: true,
     sourcemap: false,
     chunkSizeWarningLimit: 900,
@@ -25,4 +26,4 @@ export default defineConfig({
     port: 5173,
     proxy: { '/api': 'http://127.0.0.1:8000' },
   },
-});
+}));

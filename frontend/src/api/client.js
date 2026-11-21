@@ -3,6 +3,11 @@
 const meta = document.querySelector('meta[name="app-base"]');
 export const BASE = meta ? meta.getAttribute('content') : '';
 
+/** Static demo build (Vercel etc.): every API call is answered in the browser. */
+export const DEMO = import.meta.env.VITE_DEMO === 'true';
+let demoMod = null;
+const loadDemo = async () => { demoMod ??= await import('./demo/server'); return demoMod; };
+
 let csrfToken = null;
 export const setCsrf = (t) => { csrfToken = t; };
 
@@ -19,6 +24,15 @@ const listeners = new Set();
 export const onUnauthorized = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 
 export async function api(path, { method = 'GET', body, query } = {}) {
+  if (DEMO) {
+    const m = await loadDemo();
+    try {
+      return await m.demoRequest(method, path, body, query);
+    } catch (e) {
+      if (e.status === 401) listeners.forEach((fn) => fn());
+      throw new ApiError(e.status || 500, e.message, e.fields || {});
+    }
+  }
   let url = `${BASE}/api${path}`;
   if (query) {
     const qs = new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== '' && v !== 'all'));
@@ -52,6 +66,7 @@ export const del = (path) => api(path, { method: 'DELETE' });
 
 /** Absolute URL for file downloads (CSV / JSON / backups). */
 export const downloadUrl = (path, query) => {
+  if (DEMO) return demoMod ? demoMod.demoDownloadUrl(path, query || {}) : '#';
   const qs = query ? new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== '' && v !== 'all')) : null;
   return `${BASE}/api${path}${qs && [...qs].length ? `?${qs}` : ''}`;
 };
