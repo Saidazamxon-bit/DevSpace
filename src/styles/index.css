@@ -43,8 +43,8 @@
 }
 
 /* Aksent ranglar: [yorug‘] va [qorong‘i] mavzu uchun alohida tanlangan */
-[data-accent='green'] { --accent: 4 120 87; }
-.dark[data-accent='green'] { --accent: 16 185 129; --accent-ink: 4 30 22; }
+[data-accent='green'] { --accent: 30 150 98; }
+.dark[data-accent='green'] { --accent: 62 207 142; --accent-ink: 4 30 20; }
 [data-accent='violet'] { --accent: 109 40 217; }
 .dark[data-accent='violet'] { --accent: 139 92 246; }
 [data-accent='orange'] { --accent: 194 65 12; }

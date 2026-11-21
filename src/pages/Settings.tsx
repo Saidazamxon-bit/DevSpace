@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   Check, Database, Download, FileJson, FileLock2, FileSpreadsheet, HardDrive, Info, Monitor, Moon, Palette, RefreshCw,
-  ShieldCheck, Smartphone, Sun, Trash2, Upload, Wallet, LayoutGrid, Lock, FolderKanban, Target, ChevronRight,
+  ShieldCheck, Smartphone, Sun, Trash2, Upload, Wallet, Lock,
 } from 'lucide-react';
 import { useSettings, DEFAULT_SETTINGS, pickSettings } from '@/store/settings';
 import { usePwa, isIOS, isStandalone } from '@/store/pwa';
@@ -17,8 +17,8 @@ import { getStorageInfo, requestPersistentStorage, SCHEMA_VERSION } from '@/data
 import { CURRENCIES, NUMBER_FORMAT_OPTIONS } from '@/utils/money';
 import { DATE_FORMAT_OPTIONS } from '@/utils/date';
 import { cn, downloadBlob } from '@/utils/misc';
-import type { AccentName, CurrencyCode, DateFormat, NumberFormat, StartPage, ThemeMode } from '@/types';
-import { PageHeader, Segmented, Switch } from '@/components/ui/primitives';
+import type { AccentName, CurrencyCode, DateFormat, NumberFormat, ThemeMode } from '@/types';
+import { PageHeader, Switch } from '@/components/ui/primitives';
 import { ImportDialog } from '@/components/settings/ImportDialog';
 import { PasswordDialog } from '@/components/settings/PasswordDialog';
 import { SecuritySection } from '@/components/settings/SecuritySection';
@@ -27,12 +27,12 @@ import { InitialBalanceModal } from '@/components/InitialBalanceModal';
 declare const __APP_VERSION__: string;
 
 const ACCENTS: { value: AccentName; label: string; light: string; dark: string }[] = [
+  { value: 'green', label: 'Yashil', light: '#1E9662', dark: '#3ECF8E' },
   { value: 'blue', label: 'Ko‘k', light: '#1D4ED8', dark: '#3B82F6' },
-  { value: 'green', label: 'Yashil', light: '#047857', dark: '#10B981' },
   { value: 'violet', label: 'Binafsha', light: '#6D28D9', dark: '#8B5CF6' },
   { value: 'orange', label: 'To‘q sariq', light: '#C2410C', dark: '#FB923C' },
-  { value: 'pink', label: 'Pushti', light: '#BE185D', dark: '#F472B6' },
   { value: 'teal', label: 'Turkuaz', light: '#0F766E', dark: '#2DD4BF' },
+  { value: 'pink', label: 'Pushti', light: '#BE185D', dark: '#F472B6' },
   { value: 'gold', label: 'Oltin', light: '#A16207', dark: '#F5B83D' },
 ];
 
@@ -40,13 +40,6 @@ const THEMES: { value: ThemeMode; label: string; icon: typeof Sun; desc: string 
   { value: 'light', label: 'Yorug‘', icon: Sun, desc: 'Och fon' },
   { value: 'dark', label: 'Qorong‘i', icon: Moon, desc: 'To‘q fon' },
   { value: 'system', label: 'Tizim', icon: Monitor, desc: 'Qurilmaga mos' },
-];
-
-const START_PAGES: { value: StartPage; label: string }[] = [
-  { value: '/', label: 'Bosh sahifa' },
-  { value: '/transactions', label: 'Tranzaksiyalar' },
-  { value: '/analytics', label: 'Analitika' },
-  { value: '/budgets', label: 'Budjetlar' },
 ];
 
 function Section({ id, title, icon: Icon, children, desc }: { id: string; title: string; icon: typeof Sun; children: React.ReactNode; desc?: string }) {
@@ -94,6 +87,12 @@ export default function Settings() {
   useEffect(() => {
     void getStorageInfo().then(setStorage);
   }, [txs?.length]);
+
+  // Menyudagi “Zaxira va tiklash” → ma’lumotlar bo‘limiga o‘tish
+  const loc = useLocation();
+  useEffect(() => {
+    if (loc.hash === '#data') window.setTimeout(() => document.getElementById('data')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }, [loc.hash]);
 
   async function exportJson() {
     try {
@@ -165,25 +164,11 @@ export default function Settings() {
 
   return (
     <div>
-      <PageHeader title="Sozlamalar" subtitle="Ilova ko‘rinishi, formatlar, xavfsizlik va ma’lumotlar" />
+      <PageHeader title="Sozlamalar" />
 
-      {/* Mobil uchun tezkor havolalar */}
-      <div className="lg:hidden card-flush mb-4 divide-y divide-line/60">
-        {[
-          { to: '/budgets', label: 'Budjetlar', icon: Target },
-          { to: '/categories', label: 'Kategoriyalar', icon: FolderKanban },
-        ].map((l) => (
-          <Link key={l.to} to={l.to} className="flex items-center gap-3 px-4 py-3.5 active:bg-surface-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-surface-2 text-muted"><l.icon size={18} /></span>
-            <span className="flex-1 font-medium">{l.label}</span>
-            <ChevronRight size={18} className="text-subtle" />
-          </Link>
-        ))}
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2 items-start">
+      <div className="grid gap-4 lg:grid-cols-2 items-start pb-10">
         <div className="space-y-4">
-          <Section id="appearance" title="Tashqi ko‘rinish" icon={Palette} desc="Mavzu va asosiy rang">
+          <Section id="appearance" title="Ko‘rinish" icon={Palette} desc="Mavzu va asosiy rang">
             <span className="label">Mavzu</span>
             <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Mavzu">
               {THEMES.map((t) => (
@@ -227,27 +212,9 @@ export default function Settings() {
                 </button>
               ))}
             </div>
-          </Section>
 
-          <Section id="interface" title="Interfeys sozlamalari" icon={LayoutGrid}>
-            <div className="space-y-4">
-              <Row label="Interfeys zichligi" desc="Ixcham rejimda ko‘proq ma’lumot sig‘adi">
-                <Segmented className="w-full" value={s.density} onChange={(v) => s.set({ density: v })} options={[{ value: 'comfortable', label: 'Odatiy' }, { value: 'compact', label: 'Ixcham' }]} label="Zichlik" />
-              </Row>
+            <div className="mt-5">
               <Switch checked={s.animations} onChange={(v) => s.set({ animations: v })} label="Animatsiyalar" description="Tizimda “harakatni kamaytirish” yoqilgan bo‘lsa, avtomatik kamayadi" />
-              <div className="hidden lg:block">
-                <Switch checked={s.sidebarCollapsed} onChange={(v) => s.set({ sidebarCollapsed: v })} label="Yon menyuni yig‘ish" description="Faqat ikonkalar ko‘rsatiladi" />
-              </div>
-              <Row label="Birinchi sahifa" desc="Ilova ochilganda ko‘rsatiladi" htmlFor="startpage">
-                <select id="startpage" className="input" value={s.startPage} onChange={(e) => s.set({ startPage: e.target.value as StartPage })}>
-                  {START_PAGES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </Row>
-              <Row label="Budjet ogohlantirishi" desc="Limitning necha foiziga yetganda ogohlantirilsin" htmlFor="warn">
-                <select id="warn" className="input" value={s.budgetWarnPercent} onChange={(e) => s.set({ budgetWarnPercent: Number(e.target.value) })}>
-                  {[60, 70, 75, 80, 85, 90, 95].map((n) => <option key={n} value={n}>{n}%</option>)}
-                </select>
-              </Row>
             </div>
           </Section>
 

@@ -67,7 +67,7 @@ export interface SecurityConfig {
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type AccentName = 'blue' | 'green' | 'violet' | 'orange' | 'pink' | 'teal' | 'gold';
+export type AccentName = 'green' | 'blue' | 'violet' | 'orange' | 'teal' | 'pink' | 'gold';
 export type Density = 'comfortable' | 'compact';
 export type CurrencyCode = 'UZS' | 'USD' | 'EUR' | 'RUB';
 export type DateFormat = 'DD.MM.YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'D MMMM YYYY';
@@ -88,7 +88,7 @@ export interface Settings {
   budgetWarnPercent: number;
 }
 
-export type PeriodPreset = 'today' | 'week' | 'month' | 'year' | 'custom';
+export type PeriodPreset = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'custom' | 'all';
 
 export interface DateRange {
   from: ISODate;

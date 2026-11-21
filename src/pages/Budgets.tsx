@@ -65,8 +65,8 @@ export default function Budgets() {
         title="Budjetlar"
         subtitle="Kategoriyalar bo‘yicha oylik xarajat limitlari"
         actions={
-          <button className="btn btn-primary btn-sm h-10" onClick={openNew} disabled={!freeCats.length}>
-            <Plus size={16} /> Budjet qo‘shish
+          <button className="btn btn-primary btn-sm h-10 px-3" onClick={openNew} disabled={!freeCats.length}>
+            <Plus size={16} /> <span className="hidden sm:inline">Budjet qo‘shish</span>
           </button>
         }
       />

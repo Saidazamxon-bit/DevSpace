@@ -1,4 +1,4 @@
-import { BarChart3, FolderKanban, LayoutDashboard, ListOrdered, Settings, Target, type LucideIcon } from 'lucide-react';
+import { FolderKanban, Home, ListOrdered, Settings, Target, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -7,10 +7,9 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Bosh sahifa', icon: LayoutDashboard },
+  { to: '/', label: 'Asosiy', icon: Home },
   { to: '/transactions', label: 'Tranzaksiyalar', icon: ListOrdered },
-  { to: '/analytics', label: 'Analitika', icon: BarChart3 },
-  { to: '/budgets', label: 'Budjetlar', icon: Target },
   { to: '/categories', label: 'Kategoriyalar', icon: FolderKanban },
+  { to: '/budgets', label: 'Budjetlar', icon: Target },
   { to: '/settings', label: 'Sozlamalar', icon: Settings },
 ];

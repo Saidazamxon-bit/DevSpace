@@ -1,4 +1,6 @@
 import { type ReactNode, useId } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/utils/misc';
 import { getIcon } from '@/utils/icons';
 
@@ -132,14 +134,20 @@ export function Field({ label, error, hint, children, htmlFor }: { label: string
   );
 }
 
+/** Ichki sahifalar sarlavhasi: ← orqaga (bosh ekranga), nom va amallar */
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3 mb-5 lg:mb-6">
-      <div className="min-w-0">
-        <h1 className="text-2xl lg:text-[28px] font-bold tracking-tight text-ink">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+    <header className="sticky top-0 z-30 -mx-4 mb-4 bg-bg/85 px-3 pt-[var(--safe-top)] backdrop-blur-xl sm:-mx-6 sm:px-5">
+      <div className="flex min-h-14 items-center gap-1">
+        <Link to="/" className="icon-btn text-ink" aria-label="Orqaga — bosh ekran">
+          <ArrowLeft size={21} />
+        </Link>
+        <div className="min-w-0 flex-1 pl-1">
+          <h1 className="truncate text-[18px] font-bold tracking-tight text-ink">{title}</h1>
+          {subtitle && <p className="truncate text-[12px] text-muted -mt-0.5">{subtitle}</p>}
+        </div>
+        {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
-    </div>
+    </header>
   );
 }

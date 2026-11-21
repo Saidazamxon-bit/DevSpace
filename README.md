@@ -4,21 +4,24 @@ Shaxsiy moliyani boshqarish uchun **offline ishlaydigan** web-ilova (PWA). Darom
 
 ## Imkoniyatlar
 
-- **Bosh sahifa** — umumiy balans, davr bo‘yicha daromad/xarajat (bugun, hafta, oy, yil, maxsus oraliq), joriy oy natijasi, moliyaviy holat, grafiklar, oylik statistika, oxirgi operatsiyalar.
-- **Tranzaksiyalar** — qo‘shish, tahrirlash, o‘chirish (“Qaytarish” imkoniyati bilan), qidiruv, tur/kategoriya/to‘lov turi/sana bo‘yicha filtr, saralash, sana bo‘yicha guruhlash, sahifalash, CSV eksport.
-- **Analitika** — daromad va xarajat taqqoslanishi, oylik xarajatlar, kategoriyalar bo‘yicha taqsimot, daromad va xarajat dinamikasi, sof natija, jadval ko‘rinishi. Hammasi haqiqiy ma’lumotlardan hisoblanadi.
-- **Budjetlar** — kategoriya bo‘yicha oylik limit, sarflangan/qolgan summa, foiz progress, limitga yaqinlashganda va oshganda ogohlantirish.
-- **Kategoriyalar** — yaratish, tahrirlash (nom, ikonka, rang), o‘chirish. Ishlatilgan kategoriya o‘chirilganda tranzaksiyalar boshqa kategoriyaga ko‘chiriladi — ma’lumot buzilmaydi.
-- **Sozlamalar** — Light / Dark / System mavzu, 7 ta aksent rang, zichlik, animatsiyalar, yon menyu, birinchi sahifa, valyuta (UZS, USD, EUR, RUB), sana va son formatlari, boshlang‘ich balans.
-- **Zaxira** — to‘liq JSON zaxira, parol bilan shifrlangan zaxira (AES-256-GCM + PBKDF2), CSV eksport, tekshiruv va “birlashtirish/almashtirish” tanlovi bilan import.
-- **Xavfsizlik** — PIN-kod (PBKDF2 xesh) bilan qulflash, mavjud bo‘lsa barmoq izi / Face ID (WebAuthn), avtomatik qulflash, noto‘g‘ri urinishlarda kutish.
-- **PWA** — Android, iPhone va kompyuterga o‘rnatiladi, to‘liq offline ishlaydi, yangi versiya chiqqanda foydalanuvchidan so‘rab yangilanadi.
+Ilova bitta asosiy ekranga qurilgan — ochishingiz bilan pulingiz qayerga ketayotganini ko‘rasiz:
+
+- **Bosh ekran** — davr tanlash (Bugun, Kecha, Shu hafta, Shu oy, Maxsus va ‹ › bilan oldingi/keyingi davr), markazda katta donut grafik: xarajat kategoriyalari ulushi, markazda daromad, xarajat va qoldiq. Atrofidagi kategoriya ikonkasiga bosilsa — shu kategoriyaga tez xarajat qo‘shiladi; segmentga bosilsa — kategoriya ma’lumoti chiqadi.
+- **Balans paneli** va ixcham **kategoriyalar ro‘yxati** (ikonka, nom, tranzaksiyalar soni, jami summa).
+- Pastda ikkita katta tugma: qizil **−** xarajat, yashil **+** daromad. Telefonda summa ilovaning o‘z raqamli klaviaturasi bilan kiritiladi.
+- **Tranzaksiyalar** — menyu, qidiruv yoki kategoriyaga bosib ochiladi: ko‘rish, tahrirlash, o‘chirish (“Qaytarish” bilan), davr/kategoriya/tur bo‘yicha filtr, qidiruv, CSV eksport.
+- **Kategoriyalar** — yaratish, nom, ikonka va rangni o‘zgartirish, o‘chirish (ishlatilgan bo‘lsa, yozuvlar boshqa kategoriyaga ko‘chiriladi).
+- **Budjetlar** — kategoriya bo‘yicha oylik limit, limitga yaqinlashganda ogohlantirish.
+- **Sozlamalar** — Light / Dark / System mavzu, asosiy rang (yashil, ko‘k, binafsha, to‘q sariq, turkuaz, pushti, oltin), valyuta (UZS, USD, EUR, RUB), sana va son formati, boshlang‘ich balans.
+- **Zaxira** — JSON zaxira, parol bilan shifrlangan zaxira (AES-256-GCM), CSV eksport, tekshiruv va “birlashtirish/almashtirish” bilan import.
+- **Xavfsizlik** — PIN-kod bilan qulflash, mavjud bo‘lsa barmoq izi / Face ID.
+- **PWA** — telefon va kompyuterga o‘rnatiladi, to‘liq offline ishlaydi.
 
 > PIN-kod ilova interfeysiga kirishni cheklaydi, lekin brauzer xotirasidagi ma’lumotlarni shifrlamaydi. Qurilmaga to‘liq kirish huquqiga ega shaxsdan mutlaq himoya kafolatlanmaydi — maxfiy nusxa uchun shifrlangan zaxiradan foydalaning.
 
 ## Texnologiyalar
 
-React 18, TypeScript, Vite, Tailwind CSS, Lucide, Recharts, Dexie (IndexedDB), Zustand, vite-plugin-pwa (Workbox). Shriftlar va barcha kutubxonalar lokal — tashqi CDN yoki API ishlatilmaydi.
+React 18, TypeScript, Vite, Tailwind CSS, Lucide, Dexie (IndexedDB), Zustand, vite-plugin-pwa (Workbox). Donut grafik — yengil SVG (grafik kutubxonasisiz). Shriftlar va barcha kutubxonalar lokal — tashqi CDN yoki API ishlatilmaydi.
 
 ## Ishga tushirish
 
@@ -50,8 +53,8 @@ Ilova nisbiy yo‘llar (`base: './'`) va hash-routing ishlatadi, shuning uchun i
 ```
 src/
   components/   UI komponentlar (ui/, charts/, settings/, forma va ro‘yxat elementlari)
-  pages/        Sahifalar: Dashboard, Transactions, Analytics, Budgets, Categories, Settings
-  layouts/      Desktop sidebar, mobil pastki menyu va yon panel
+  pages/        Home (bosh ekran), Transactions, Categories, Budgets, Settings
+  layouts/      Sodda layout va chapdan ochiladigan menyu
   hooks/        Ma’lumotlarni jonli o‘qish (useLiveQuery), mavzu, format, onlayn holat
   services/     Ma’lumotlar qatlami: finance (CRUD + validatsiya), backup, crypto, security
   database/     Dexie sxemasi, versiyalar va migratsiyalar, standart kategoriyalar

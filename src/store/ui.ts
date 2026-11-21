@@ -70,16 +70,18 @@ export const confirmDialog = (o: ConfirmOptions) => useConfirm.getState().open(o
 interface TxFormState {
   open: boolean;
   type: TxType;
+  categoryId: string | null;
   editing: Transaction | null;
-  openNew: (type?: TxType) => void;
+  openNew: (type?: TxType, categoryId?: string) => void;
   openEdit: (tx: Transaction) => void;
   close: () => void;
 }
 export const useTxForm = create<TxFormState>((set) => ({
   open: false,
   type: 'expense',
+  categoryId: null,
   editing: null,
-  openNew: (type = 'expense') => set({ open: true, type, editing: null }),
+  openNew: (type = 'expense', categoryId) => set({ open: true, type, categoryId: categoryId ?? null, editing: null }),
   openEdit: (tx) => set({ open: true, type: tx.type, editing: tx }),
   close: () => set({ open: false }),
 }));

@@ -4,7 +4,7 @@ import type { Settings } from '@/types';
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
-  accent: 'blue',
+  accent: 'green',
   density: 'comfortable',
   animations: true,
   sidebarCollapsed: false,

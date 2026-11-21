@@ -65,8 +65,8 @@ export default function Categories() {
         title="Kategoriyalar"
         subtitle="Daromad va xarajatlarni guruhlash uchun"
         actions={
-          <button className="btn btn-primary btn-sm h-10" onClick={() => setForm({ open: true, editing: null })}>
-            <Plus size={16} /> Yangi kategoriya
+          <button className="btn btn-primary btn-sm h-10 px-3" onClick={() => setForm({ open: true, editing: null })}>
+            <Plus size={16} /> <span className="hidden sm:inline">Yangi kategoriya</span>
           </button>
         }
       />

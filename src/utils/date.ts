@@ -68,26 +68,64 @@ export function daysBetween(a: ISODate, b: ISODate): number {
   return Math.round((fromISODate(b).getTime() - fromISODate(a).getTime()) / 86_400_000);
 }
 
-export function rangeForPreset(preset: Exclude<PeriodPreset, 'custom'>, today = todayISO()): DateRange {
+/** Davr oralig‘i. `offset` — oldingi/keyingi davrga siljish (‹ › tugmalari) */
+export function rangeForPreset(preset: Exclude<PeriodPreset, 'custom'>, today = todayISO(), offset = 0): DateRange {
   switch (preset) {
-    case 'today':
-      return { from: today, to: today };
-    case 'week':
-      return { from: startOfWeek(today), to: addDays(startOfWeek(today), 6) };
-    case 'month':
-      return { from: startOfMonth(today), to: endOfMonth(today) };
-    case 'year':
-      return { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` };
+    case 'today': {
+      const d = addDays(today, offset);
+      return { from: d, to: d };
+    }
+    case 'yesterday': {
+      const d = addDays(today, offset - 1);
+      return { from: d, to: d };
+    }
+    case 'week': {
+      const s = addDays(startOfWeek(today), offset * 7);
+      return { from: s, to: addDays(s, 6) };
+    }
+    case 'month': {
+      const m = addMonths(startOfMonth(today), offset);
+      return { from: m, to: endOfMonth(m) };
+    }
+    case 'year': {
+      const y = Number(today.slice(0, 4)) + offset;
+      return { from: `${y}-01-01`, to: `${y}-12-31` };
+    }
+    case 'all':
+      return { from: '1970-01-01', to: '2200-12-31' };
   }
 }
 
 export const PERIOD_LABELS: Record<PeriodPreset, string> = {
   today: 'Bugun',
-  week: 'Bu hafta',
-  month: 'Bu oy',
-  year: 'Bu yil',
+  yesterday: 'Kecha',
+  week: 'Shu hafta',
+  month: 'Shu oy',
+  year: 'Shu yil',
   custom: 'Maxsus',
+  all: 'Hammasi',
 };
+
+/** Tanlangan davrning sarlavhasi: "21-noyabr, shanba", "16–22-noyabr", "Noyabr 2026" */
+export function describeRange(preset: PeriodPreset, r: DateRange, fmt: DateFormat, today = todayISO()): string {
+  if (preset === 'all') return 'Barcha vaqt';
+  if (preset === 'custom') return formatRange(r, fmt);
+  if (preset === 'today' || preset === 'yesterday') {
+    if (r.from === today) return 'Bugun';
+    if (r.from === addDays(today, -1)) return 'Kecha';
+    const d = fromISODate(r.from);
+    const same = r.from.slice(0, 4) === today.slice(0, 4);
+    return `${d.getDate()}-${MONTHS[d.getMonth()].toLowerCase()}${same ? '' : ' ' + d.getFullYear()}, ${WEEKDAYS[d.getDay()].toLowerCase()}`;
+  }
+  if (preset === 'week') {
+    const a = fromISODate(r.from);
+    const b = fromISODate(r.to);
+    if (a.getMonth() === b.getMonth()) return `${a.getDate()}–${b.getDate()}-${MONTHS[b.getMonth()].toLowerCase()}`;
+    return `${a.getDate()}-${MONTHS_SHORT[a.getMonth()].toLowerCase()} – ${b.getDate()}-${MONTHS_SHORT[b.getMonth()].toLowerCase()}`;
+  }
+  if (preset === 'month') return formatMonthYear(r.from);
+  return r.from.slice(0, 4);
+}
 
 export const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string }[] = [
   { value: 'DD.MM.YYYY', label: '21.11.2026' },
