@@ -1,0 +1,15 @@
+# DEVSPACE — used when the web server's document root is the project root
+# (e.g. files uploaded straight into public_html). Everything is routed into /public
+# and the application's private folders are never served.
+Options -Indexes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct access to private directories and dotfiles
+    RewriteRule ^(app|config|database|routes|storage|views|cron|bin|frontend|vendor)(/|$) - [F,L]
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+    RewriteRule \.(md|sql|lock|log|json)$ - [F,L,NC]
+
+    RewriteCond %{REQUEST_URI} !/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

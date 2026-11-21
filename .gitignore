@@ -1,0 +1,13 @@
+/.env
+/storage/logs/*
+/storage/backups/*
+/storage/cache/*
+/storage/sessions/*
+/storage/installed.lock
+!/storage/**/.gitkeep
+!/storage/.htaccess
+/frontend/node_modules
+/node_modules
+/vendor
+.DS_Store
+*.log
