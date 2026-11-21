@@ -344,7 +344,10 @@ check(accText.includes('Investitsiya') && accText.includes('40 000 so‘m') && a
 for (const [path, name] of [['', 'home'], ['#/transactions', 'transactions'], ['#/categories', 'categories'], ['#/budgets', 'budgets'], ['#/settings', 'settings'], ['#/distribution', 'distribution']]) {
   await m.goto(BASE + path);
   await m.waitForTimeout(500);
-  const over = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const over = await m.evaluate(() => {
+    const c = document.getElementById('app-scroll');
+    return Math.max(document.documentElement.scrollWidth - window.innerWidth, c ? c.scrollWidth - c.clientWidth : 0);
+  });
   check(over <= 0, `Mobil (${name}): gorizontal scroll yo‘q (${over}px)`);
   await m.screenshot({ path: `${OUT}/mobile-${name}.png` });
 }

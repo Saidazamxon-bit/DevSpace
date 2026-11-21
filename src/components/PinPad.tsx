@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { Delete, Fingerprint } from 'lucide-react';
+import { Delete, Fingerprint, ScanFace } from 'lucide-react';
+import { isIOS } from '@/store/pwa';
 import { cn } from '@/utils/misc';
 
 /**
@@ -88,7 +89,7 @@ export function PinPad({
         ))}
         {onBiometric ? (
           <button type="button" className={ghostCls} onClick={onBiometric} aria-label="Biometrik tasdiqlash" disabled={disabled}>
-            <Fingerprint size={30} strokeWidth={1.6} />
+            {isIOS() ? <ScanFace size={30} strokeWidth={1.6} /> : <Fingerprint size={30} strokeWidth={1.6} />}
           </button>
         ) : (
           <span />

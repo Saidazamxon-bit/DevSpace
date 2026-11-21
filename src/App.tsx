@@ -66,15 +66,46 @@ function PageFallback() {
   );
 }
 
+const HIDDEN_KEY = 'pf-hidden-at';
+function readHiddenAt(): number {
+  try {
+    const v = Number(localStorage.getItem(HIDDEN_KEY));
+    // Kelajakdagi vaqt (soat o‘zgartirilgan) — ishonmaymiz
+    return Number.isFinite(v) && v <= Date.now() ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+function writeHiddenAt(t: number) {
+  try {
+    localStorage.setItem(HIDDEN_KEY, String(t));
+  } catch {
+    /* maxfiy rejim */
+  }
+}
+
 /** PIN o‘rnatilgan bo‘lsa — ishga tushganda va fondan qaytganda qulflash */
 function useAppLock() {
   const setLocked = useLock((s) => s.setLocked);
   const setReady = useLock((s) => s.setReady);
   useEffect(() => {
     let hiddenAt = 0;
+    let unloading = false;
+    const onPageHide = () => {
+      unloading = true;
+    };
+    const onPageShow = () => {
+      unloading = false;
+    };
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
     getSecurity()
       .then((cfg) => {
-        if (cfg.pinHash) setLocked(true);
+        // iPhone fondagi ilovani tez-tez to‘liq yopib qo‘yadi. Agar ilova yaqinda
+        // (avtomatik qulflash vaqtidan oldin) yopilgan bo‘lsa — qayta PIN so‘ramaymiz.
+        const last = readHiddenAt();
+        const recent = last > 0 && Date.now() - last < cfg.autoLockMinutes * 60_000;
+        if (cfg.pinHash && !recent) setLocked(true);
       })
       .catch(() => undefined)
       .finally(setReady);
@@ -82,6 +113,9 @@ function useAppLock() {
     const onVis = async () => {
       if (document.visibilityState === 'hidden') {
         hiddenAt = Date.now();
+        // Qulf ochiq bo‘lgandagina eslab qolamiz (qulflangan ilova qulflangan holda qoladi)
+        // Sahifa yangilanayotgan/yopilayotgan bo‘lsa (pagehide) — hisoblamaymiz
+        if (!useLock.getState().locked && !unloading) writeHiddenAt(hiddenAt);
         return;
       }
       if (!hiddenAt) return;
@@ -90,7 +124,22 @@ function useAppLock() {
       hiddenAt = 0;
     };
     document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+    // Qo‘lda yoki taymer bilan qulflansa — “yaqinda yopilgan” belgisini o‘chiramiz
+    const unsub = useLock.subscribe((st, prev) => {
+      if (st.locked && !prev.locked) {
+        try {
+          localStorage.removeItem(HIDDEN_KEY);
+        } catch {
+          /* */
+        }
+      }
+    });
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
+      unsub();
+    };
   }, [setLocked, setReady]);
 }
 
