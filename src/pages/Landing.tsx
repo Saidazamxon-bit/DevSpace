@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeftRight, BellRing, CheckCircle2, ChevronDown, Download, Fingerprint, Lock, MoreVertical, PieChart, PlusSquare, Repeat, Server, Share,
   ShieldCheck, Smartphone, Wallet, WifiOff, Zap,
@@ -51,6 +51,30 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
   const [guide, setGuide] = useState(false);
   const [busy, setBusy] = useState(false);
   const platform = detectPlatform();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Bo‘limlar scroll qilinganda silliq paydo bo‘ladi
+  useEffect(() => {
+    const els = rootRef.current?.querySelectorAll<HTMLElement>('.reveal');
+    if (!els?.length) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      els.forEach((el) => el.classList.add('is-in'));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-in');
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [installed]);
 
   useEffect(() => {
     document.title = 'Personal Finance — shaxsiy moliyani oson boshqaring';
@@ -111,7 +135,7 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
     );
 
   return (
-    <div className="min-h-dvh bg-bg">
+    <div ref={rootRef} className="min-h-dvh overflow-x-clip bg-bg">
       {/* ── Bosh qism ── */}
       <section
         className="relative overflow-hidden rounded-b-[2.5rem] pb-12 text-white"
@@ -158,13 +182,13 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
 
       {/* ── Imkoniyatlar ── */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8" aria-labelledby="f-title">
-        <p className="text-center text-[13px] font-semibold uppercase tracking-wider text-accent">Imkoniyatlar</p>
-        <h2 id="f-title" className="mx-auto mt-2 max-w-2xl text-center text-[28px] font-bold leading-tight tracking-tight text-ink sm:text-[36px]">
+        <p className="reveal text-center text-[13px] font-semibold uppercase tracking-wider text-accent">Imkoniyatlar</p>
+        <h2 id="f-title" className="reveal mx-auto mt-2 max-w-2xl text-center text-[28px] font-bold leading-tight tracking-tight text-ink sm:text-[36px]">
           Moliyaviy tartib uchun kerakli hamma narsa — ortiqchasiz
         </h2>
         <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <li key={f.title} className="card">
+          {FEATURES.map((f, i) => (
+            <li key={f.title} className="card reveal" style={{ '--d': `${(i % 3) * 90}ms` } as React.CSSProperties}>
               <span className="grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: f.color }}>
                 <f.icon size={22} />
               </span>
@@ -178,11 +202,11 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
       {/* ── Qanday ishlaydi ── */}
       <section className="bg-surface py-16" aria-labelledby="s-title">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
-          <p className="text-center text-[13px] font-semibold uppercase tracking-wider text-accent">Qanday ishlaydi</p>
-          <h2 id="s-title" className="mt-2 text-center text-[28px] font-bold tracking-tight text-ink sm:text-[36px]">3 qadamda boshlang</h2>
+          <p className="reveal text-center text-[13px] font-semibold uppercase tracking-wider text-accent">Qanday ishlaydi</p>
+          <h2 id="s-title" className="reveal mt-2 text-center text-[28px] font-bold tracking-tight text-ink sm:text-[36px]">3 qadamda boshlang</h2>
           <ol className="mt-10 grid gap-6 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <li key={s.n} className="relative rounded-[1.75rem] bg-bg p-6">
+            {STEPS.map((s, i) => (
+              <li key={s.n} className="reveal relative rounded-[1.75rem] bg-bg p-6" style={{ '--d': `${i * 120}ms` } as React.CSSProperties}>
                 <span className="grid h-11 w-11 place-items-center rounded-full bg-accent text-[18px] font-bold text-accent-ink">{s.n}</span>
                 <h3 className="mt-4 text-[18px] font-bold text-ink">{s.title}</h3>
                 <p className="mt-1.5 text-[14.5px] leading-relaxed text-muted">{s.text}</p>
@@ -194,7 +218,7 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
 
       {/* ── Maxfiylik ── */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8" aria-labelledby="p-title">
-        <div className="grid items-center gap-10 rounded-[2rem] bg-[#0f1a16] p-8 text-white sm:p-12 lg:grid-cols-2">
+        <div className="reveal grid items-center gap-10 rounded-[2rem] bg-[#0f1a16] p-8 text-white sm:p-12 lg:grid-cols-2">
           <div>
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
               <ShieldCheck size={28} />
@@ -227,8 +251,8 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
 
       {/* ── Savollar ── */}
       <section className="mx-auto max-w-3xl px-5 pb-16 sm:px-8" aria-labelledby="q-title">
-        <h2 id="q-title" className="text-center text-[28px] font-bold tracking-tight text-ink sm:text-[34px]">Ko‘p beriladigan savollar</h2>
-        <div className="card-flush mt-8 divide-y divide-line/60">
+        <h2 id="q-title" className="reveal text-center text-[28px] font-bold tracking-tight text-ink sm:text-[34px]">Ko‘p beriladigan savollar</h2>
+        <div className="reveal card-flush mt-8 divide-y divide-line/60">
           {FAQ.map((f) => (
             <details key={f.q} className="group px-5 py-4 [&_summary::-webkit-details-marker]:hidden">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-semibold text-ink">
@@ -244,7 +268,7 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
       {/* ── Yakuniy chaqiriq ── */}
       <section className="px-5 pb-12 sm:px-8">
         <div
-          className="mx-auto max-w-6xl rounded-[2rem] px-6 py-12 text-center text-white"
+          className="reveal mx-auto max-w-6xl rounded-[2rem] px-6 py-12 text-center text-white"
           style={{ background: 'radial-gradient(120% 120% at 50% 0%, rgb(var(--accent)) 0%, rgb(var(--accent) / 0.85) 55%, rgb(10 60 40) 130%)' }}
         >
           <h2 className="text-[26px] font-bold tracking-tight sm:text-[34px]">Bugundan boshlab pulingizni nazorat qiling</h2>
@@ -264,21 +288,64 @@ export default function Landing({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-/** Ilova ko‘rinishi — haqiqiy iPhone maketi (shaffof fonli rasm) */
+/**
+ * Ilova ko‘rinishi — iPhone maketi. Scroll qilinganda telefon orqaga yotgan holatdan
+ * to‘g‘rilanib, kattalashib chiqadi; keyin yengil suzib turadi.
+ */
 function PhonePreview() {
+  const ref = useRef<HTMLDivElement>(null);
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    const tilt = tiltRef.current;
+    if (!el || !tilt) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off') return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+      // 0 — telefon ekran pastida endi ko‘rindi, 1 — ekranning yuqori choragiga yetdi
+      const p = Math.min(1, Math.max(0, (vh - r.top) / (vh * 0.7)));
+      const e = 1 - Math.pow(1 - p, 3);
+      // To‘g‘rilangandan keyin chuqurlik uchun yengil parallaks
+      const past = Math.max(0, -r.top) * 0.12;
+      tilt.style.transform = `translateY(${((1 - e) * 70 - past).toFixed(1)}px) rotateX(${((1 - e) * 28).toFixed(2)}deg) scale(${(0.86 + 0.14 * e).toFixed(3)})`;
+      tilt.style.opacity = (0.35 + 0.65 * e).toFixed(3);
+      if (glowRef.current) glowRef.current.style.opacity = (0.2 + 0.8 * e).toFixed(3);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, []);
+
   return (
-    <div className="relative mx-auto w-full max-w-[340px] animate-fade-up">
+    <div ref={ref} className="relative mx-auto w-full max-w-[330px] [perspective:1100px]" data-testid="phone-preview">
       {/* Orqadagi yumshoq nur */}
-      <div aria-hidden className="absolute inset-x-6 bottom-6 top-10 rounded-[3rem] bg-white/25 blur-3xl" />
-      <img
-        src={appPreview}
-        alt="Personal Finance ilovasi iPhone’da: jami mablag‘, grafik, daromadni taqsimlash va oxirgi operatsiyalar"
-        width={760}
-        height={1134}
-        decoding="async"
-        className="relative h-auto w-full select-none drop-shadow-[0_30px_50px_rgb(0_0_0/0.35)]"
-        draggable={false}
-      />
+      <div ref={glowRef} aria-hidden className="absolute inset-x-4 bottom-10 top-16 rounded-[3rem] bg-white/30 blur-3xl transition-opacity" />
+      <div ref={tiltRef} className="relative origin-[50%_85%] will-change-transform">
+        <div className="phone-float">
+          <img
+            src={appPreview}
+            alt="Personal Finance ilovasi iPhone’da: jami mablag‘, grafik, daromad va xarajat, daromadni taqsimlash"
+            width={760}
+            height={1568}
+            decoding="async"
+            className="relative h-auto w-full select-none drop-shadow-[0_34px_50px_rgb(0_0_0/0.4)]"
+            draggable={false}
+          />
+        </div>
+      </div>
     </div>
   );
 }
